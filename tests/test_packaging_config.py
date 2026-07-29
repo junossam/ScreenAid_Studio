@@ -36,6 +36,14 @@ class PackagingConfigTests(unittest.TestCase):
         self.assertTrue((ROOT / "portable.flag").exists())
         self.assertIn("PyInstaller", (ROOT / "requirements-build.txt").read_text(encoding="utf-8"))
 
+    def test_default_build_opens_settings_window_on_startup(self) -> None:
+        defaults = (ROOT / "config" / "settings.ini").read_text(encoding="utf-8")
+        app_controller = (ROOT / "core" / "app_controller.py").read_text(encoding="utf-8")
+
+        self.assertIn("start_minimized = false", defaults)
+        self.assertIn("if not self.settings.app.start_minimized:", app_controller)
+        self.assertIn('self.bus.publish("settings.open")', app_controller)
+
 
 if __name__ == "__main__":
     unittest.main()

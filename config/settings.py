@@ -178,7 +178,7 @@ class Settings:
         return cls(
             app=AppSettings(
                 language=parser.get("app", "language", fallback="ko"),
-                start_minimized=parser.getboolean("app", "start_minimized", fallback=True),
+                start_minimized=parser.getboolean("app", "start_minimized", fallback=False),
             ),
             storage=StorageSettings(
                 mode=parser.get("storage", "mode", fallback="portable"),

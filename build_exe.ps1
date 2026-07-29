@@ -2,14 +2,24 @@ $ErrorActionPreference = 'Stop'
 
 Set-Location -LiteralPath $PSScriptRoot
 
+$buildTemp = Join-Path $PSScriptRoot '.tmp'
+New-Item -ItemType Directory -Force -Path $buildTemp | Out-Null
+$env:TEMP = $buildTemp
+$env:TMP = $buildTemp
+
 $python = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
 if (-not (Test-Path -LiteralPath $python)) {
     py -3.13 -m venv .venv
 }
 
-& $python -m pip install --upgrade pip
-& $python -m pip install -r requirements.txt
-& $python -m pip install -r requirements-build.txt
+& $python -c "import PySide6, PyInstaller" 2>$null
+if ($LASTEXITCODE -ne 0) {
+    & $python -m pip install --upgrade pip
+    & $python -m pip install -r requirements.txt
+    & $python -m pip install -r requirements-build.txt
+} else {
+    Write-Host "Build dependencies already installed."
+}
 & $python -m PyInstaller --clean --noconfirm ScreenAidStudio.spec
 
 $dist = Join-Path $PSScriptRoot 'dist\ScreenAidStudio'

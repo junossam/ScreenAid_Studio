@@ -32,9 +32,11 @@ def build_general_tab(dialog) -> QWidget:
         dialog.language.addItem(language.name, language.code)
     dialog.storage_mode = QComboBox()
     add_translated_items(dialog.storage_mode, "storage", STORAGE_MODE_OPTIONS)
+    dialog.start_minimized = QCheckBox()
     dialog.startup_enabled = QCheckBox()
     layout.addRow(tr("settings.language"), dialog.language)
     layout.addRow(tr("settings.storage_mode"), dialog.storage_mode)
+    layout.addRow(tr("settings.start_minimized"), dialog.start_minimized)
     layout.addRow(tr("settings.start_with_windows"), dialog.startup_enabled)
     return widget
 

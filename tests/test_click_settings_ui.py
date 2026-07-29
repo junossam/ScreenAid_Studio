@@ -44,6 +44,7 @@ class ClickSettingsUiTest(unittest.TestCase):
             "settings.default_zoom",
             "settings.region_opacity",
             "settings.storage_mode",
+            "settings.start_minimized",
             "settings.toolbar_button_size",
             "settings.save_and_close",
             "hotkey.command_mode",
@@ -71,6 +72,8 @@ class ClickSettingsUiTest(unittest.TestCase):
         self.assertNotIn('layout.addRow(tr("settings.enable_command_mode")', source)
         self.assertIn("QFileDialog.getOpenFileName", source)
         self.assertIn("QFileDialog.getSaveFileName", source)
+        self.assertIn("dialog.start_minimized = QCheckBox()", source)
+        self.assertIn('dialog._set("app", "start_minimized"', source)
         self.assertIn('dialog._set("pinned_window", "default_zoom"', source)
         self.assertIn('dialog._set("region_selection", "dark_overlay_opacity"', source)
         self.assertIn('dialog._set("capture", "filename_pattern"', source)
