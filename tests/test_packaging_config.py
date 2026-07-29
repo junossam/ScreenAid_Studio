@@ -19,6 +19,7 @@ class PackagingConfigTests(unittest.TestCase):
         self.assertIn("uac_admin=False", spec)
         self.assertIn("resources\" / \"tray_icon.ico", spec)
         self.assertIn("datas=[]", spec)
+        self.assertIn("pyi_rth_screenaid_paths.py", spec)
         self.assertIn("ScreenAidStudio.exe", build_script)
         self.assertIn("requirements-build.txt", build_script)
         self.assertIn("PyInstaller", build_script)

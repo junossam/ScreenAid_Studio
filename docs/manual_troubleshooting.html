@@ -9,6 +9,8 @@
 <body>
   <header><div class="shell"><div class="hero"><img src="../resources/tray_icon_preview.png" alt=""><div><h1>문제 해결</h1><p class="lead">자주 겪을 수 있는 상황과 해결 방법입니다.</p></div></div><nav><a href="user_manual.html">처음</a><a href="manual_quick_start.html">빠른 시작</a><a href="manual_features_shortcuts.html">기능과 단축키</a><a href="manual_settings.html">속성 설정</a></nav></div></header>
   <main class="shell">
+    <h2>PySide6.QtCore 또는 libshiboken 오류</h2>
+    <p><code>ImportError: libshiboken: could not import module 'PySide6.QtCore'</code> 오류가 보이면 배포 폴더의 런타임 DLL을 찾지 못한 상태입니다. 최신 배포판에서는 실행 초기에 PySide6와 shiboken DLL 경로를 자동 등록합니다. 그래도 문제가 나면 <code>ScreenAidStudio.exe</code>만 복사하지 말고 <code>ScreenAidStudio</code> 폴더 전체를 다시 압축 해제하거나 이동하세요.</p>
     <table>
       <thead><tr><th>증상</th><th>확인할 것</th></tr></thead>
       <tbody>
