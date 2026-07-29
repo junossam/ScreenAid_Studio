@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ScreenAid Studio 사용자 설명서</title>
+  <title>ScreenAid Studio 사용설명서</title>
   <link rel="stylesheet" href="manual.css">
 </head>
 <body>
@@ -14,7 +14,7 @@
         <div>
           <h1>ScreenAid Studio</h1>
           <p class="lead">발표, 수업, 화면 설명을 위한 가벼운 Windows 화면 보조 도구입니다.</p>
-          <p class="version">사용자 설명서 · 버전 0.1.0.0 · Windows 10 / Windows 11</p>
+          <p class="version">사용설명서 · 버전 0.1.0.0 · Windows 10 / Windows 11</p>
         </div>
       </section>
       <nav aria-label="문서 메뉴">
@@ -31,12 +31,12 @@
     <section class="download-box">
       <div class="card">
         <h3><span class="icon">G</span>GitHub</h3>
-        <p>프로젝트 소개, 릴리스 노트, 업데이트 내역을 올릴 공간입니다.</p>
+        <p>프로젝트 소개, 릴리스 노트, 업데이트 이력을 볼 수 있는 공간입니다.</p>
         <p><a class="button" href="https://github.com/junossam/ScreenAid_Studio">github.com/junossam/ScreenAid_Studio</a></p>
       </div>
       <div class="card">
         <h3><span class="icon">EXE</span>실행 파일 다운로드</h3>
-        <p>일반 사용자는 압축 파일 또는 설치 파일을 내려받아 실행하면 됩니다.</p>
+        <p>일반 사용자는 배포 폴더 또는 설치 파일을 내려받아 실행하면 됩니다.</p>
         <p><a class="button primary" href="https://junossam.github.io/ScreenAid_Studio/">ScreenAid Studio 0.1.0.0 다운로드</a></p>
       </div>
     </section>
@@ -45,25 +45,21 @@
     <div class="grid">
       <article class="card">
         <h3><span class="icon">M</span>마우스 클릭 표시</h3>
-        <p>왼쪽, 오른쪽, 양쪽 동시 클릭, 휠 클릭, 휠 드래그, 더블클릭을 화면에 표시합니다.</p>
+        <p>왼쪽 클릭, 오른쪽 클릭, 양쪽 동시 클릭, 휠 클릭, 휠 드래그, 더블클릭을 화면에 표시합니다. 수업 영상이나 원격 설명에서 사용자의 조작을 쉽게 따라오게 해줍니다.</p>
       </article>
       <article class="card">
         <h3><span class="icon">P</span>화면 그리기</h3>
-        <p>펜, 형광펜, 직선, 화살표, 사각형, 원, 도장, 지우개로 화면 위에 설명을 남깁니다.</p>
+        <p>펜, 형광펜, 직선, 화살표, 사각형, 원, 도장, 지우개로 화면 위에 설명을 남깁니다. 도구 모음은 작게 표시되며 원하는 위치로 옮길 수 있습니다.</p>
       </article>
       <article class="card">
         <h3><span class="icon">C</span>캡처와 고정 화면</h3>
-        <p>원하는 영역을 캡처하고, 캡처한 이미지를 항상 위에 떠 있는 창으로 고정합니다.</p>
+        <p>원하는 영역을 캡처하고, 캡처한 이미지를 화면 위에 테두리 없는 창으로 고정할 수 있습니다. 고정 창은 확대, 축소, 이동, 주석을 지원합니다.</p>
       </article>
       <article class="card">
         <h3><span class="icon">L</span>실시간 화면</h3>
-        <p>선택한 영역을 작은 실시간 창으로 띄워 수업 자료나 시연 화면을 계속 보여줍니다.</p>
+        <p>선택한 영역을 계속 갱신되는 작은 창으로 띄웁니다. 작은 실습 화면이나 다른 모니터의 일부를 크게 보여줄 때 유용합니다.</p>
       </article>
     </div>
-
-    <h2>저작권과 사용 범위</h2>
-    <p>ScreenAid Studio는 MIT License 기준으로 제공되며, 저작권자는 JunoSsam입니다. 개인, 공공기관, 교육기관, 학교, 강의, 발표, 비영리 및 상업 환경에서 자유롭게 사용할 수 있습니다.</p>
-    <p class="note">본 프로그램은 생성형 인공지능을 활용한 바이브 코딩 방식으로 개발되었습니다.</p>
 
     <h2>가장 먼저 기억할 것</h2>
     <table>
@@ -71,18 +67,25 @@
       <tbody>
         <tr><td>설정 열기</td><td>트레이 아이콘을 더블클릭하거나, 우클릭 메뉴에서 <strong>설정</strong>을 선택합니다.</td></tr>
         <tr><td>명령 모드 열기</td><td><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>A</kbd>를 누른 뒤 원하는 한 글자 명령을 누릅니다.</td></tr>
+        <tr><td>그리기 시작</td><td>명령 모드에서 <kbd>D</kbd>를 누릅니다. 다시 <kbd>D</kbd>를 누르면 그리기 모드가 꺼집니다.</td></tr>
         <tr><td>클릭 효과 잠시 끄기/켜기</td><td><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>E</kbd>를 누릅니다. 설정값은 바뀌지 않습니다.</td></tr>
-        <tr><td>전체 일시중지</td><td>명령 모드에서 <kbd>Space</kbd>를 누르거나 트레이 메뉴의 <strong>전체 일시중지</strong>를 사용합니다.</td></tr>
+        <tr><td>고정 화면 열기</td><td>명령 모드에서 <kbd>K</kbd>를 누르고 원하는 영역을 드래그합니다.</td></tr>
+        <tr><td>실시간 화면 열기</td><td>명령 모드에서 <kbd>G</kbd>를 누르고 원하는 영역을 드래그합니다.</td></tr>
       </tbody>
     </table>
 
-    <h2>문서 바로가기</h2>
+    <h2>자세한 설명</h2>
     <div class="grid">
-      <a class="card" href="manual_quick_start.html"><strong>빠른 시작</strong><br>다운로드 후 처음 실행하는 방법</a>
-      <a class="card" href="manual_features_shortcuts.html"><strong>기능과 단축키</strong><br>클릭 표시, 그리기, 캡처, 고정 화면, 실시간 화면</a>
-      <a class="card" href="manual_settings.html"><strong>속성 설정</strong><br>설정창의 각 탭과 저장 방식</a>
-      <a class="card" href="manual_troubleshooting.html"><strong>문제 해결</strong><br>단축키, 트레이, 캡처, 표시 문제 해결</a>
+      <a class="card" href="manual_quick_start.html"><strong>빠른 시작</strong><br>처음 실행, 트레이 아이콘, 기본 조작, 종료 방법</a>
+      <a class="card" href="manual_features_shortcuts.html"><strong>기능과 단축키</strong><br>명령 모드, 클릭 표시, 그리기 도구, 캡처, 고정 화면, 실시간 화면</a>
+      <a class="card" href="manual_settings.html"><strong>속성 설정</strong><br>설정창의 각 탭, 추천값, 저장 방식, 단축키 변경 방법</a>
+      <a class="card" href="manual_troubleshooting.html"><strong>문제 해결</strong><br>단축키, 트레이, 캡처, 클릭 표시, 창 닫기 문제 해결</a>
     </div>
+
+    <h2>저작권과 사용 범위</h2>
+    <p>ScreenAid Studio는 MIT License 기준으로 제공되며, 저작권자는 JunoSsam입니다. 개인, 공공기관, 교육기관, 학교, 강의, 발표, 비영리 및 상업 환경에서 자유롭게 사용할 수 있습니다.</p>
+    <p class="note">본 프로그램은 생성형 인공지능을 활용한 바이브 코딩 방식으로 개발되었습니다.</p>
+
     <h2>사용설명서 열기</h2>
     <p>exe 배포판에서는 <strong>트레이 아이콘 우클릭 메뉴</strong> 또는 <strong>설정 &gt; 저작권/설명</strong> 탭의 <strong>사용설명서 열기</strong> 버튼으로 이 설명서를 바로 열 수 있습니다.</p>
 
@@ -91,7 +94,7 @@
   </main>
 
   <footer>
-    <div class="shell">ScreenAid Studio 0.1.0.0 사용자 설명서</div>
+    <div class="shell">ScreenAid Studio 0.1.0.0 사용설명서</div>
   </footer>
 </body>
 </html>

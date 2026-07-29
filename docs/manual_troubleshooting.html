@@ -7,20 +7,55 @@
   <link rel="stylesheet" href="manual.css">
 </head>
 <body>
-  <header><div class="shell"><div class="hero"><img src="../resources/tray_icon_preview.png" alt=""><div><h1>문제 해결</h1><p class="lead">자주 겪을 수 있는 상황과 해결 방법입니다.</p></div></div><nav><a href="user_manual.html">처음</a><a href="manual_quick_start.html">빠른 시작</a><a href="manual_features_shortcuts.html">기능과 단축키</a><a href="manual_settings.html">속성 설정</a></nav></div></header>
+  <header><div class="shell"><div class="hero"><img src="../resources/tray_icon_preview.png" alt="ScreenAid Studio 아이콘"><div><h1>문제 해결</h1><p class="lead">자주 겪을 수 있는 상황과 확인 방법입니다.</p></div></div><nav><a href="user_manual.html">처음</a><a href="manual_quick_start.html">빠른 시작</a><a href="manual_features_shortcuts.html">기능과 단축키</a><a href="manual_settings.html">속성 설정</a></nav></div></header>
   <main class="shell">
-    <h2>PySide6.QtCore 또는 libshiboken 오류</h2>
-    <p><code>ImportError: libshiboken: could not import module 'PySide6.QtCore'</code> 오류가 보이면 배포 폴더의 런타임 DLL을 찾지 못한 상태입니다. 최신 배포판에서는 실행 초기에 PySide6와 shiboken DLL 경로를 자동 등록합니다. 그래도 문제가 나면 <code>ScreenAidStudio.exe</code>만 복사하지 말고 <code>ScreenAidStudio</code> 폴더 전체를 다시 압축 해제하거나 이동하세요.</p>
+    <h2>실행 오류</h2>
     <table>
       <thead><tr><th>증상</th><th>확인할 것</th></tr></thead>
       <tbody>
-        <tr><td>트레이 아이콘이 보이지 않음</td><td>숨겨진 아이콘 영역을 열어 확인합니다. Windows Explorer가 재시작되면 아이콘이 자동 복구될 수 있습니다.</td></tr>
-        <tr><td>명령 모드가 열리지 않음</td><td>다른 프로그램이 같은 전역 단축키를 사용 중일 수 있습니다. 설정창의 단축키 탭에서 다른 키로 바꿉니다.</td></tr>
-        <tr><td>클릭 표시가 보이지 않음</td><td><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>E</kbd>로 임시 숨김 상태가 아닌지 확인합니다. 설정창의 클릭 탭에서 전체 사용 여부와 클릭 종류별 체크 상태를 확인합니다.</td></tr>
-        <tr><td>그리기 중 아래 프로그램이 클릭되지 않음</td><td>정상 동작입니다. 그리기 모드에서는 아래 프로그램 입력을 막습니다. 명령 모드에서 <kbd>P</kbd>를 눌러 입력 통과로 돌아갑니다.</td></tr>
-        <tr><td>고정 화면 또는 실시간 화면이 <kbd>Esc</kbd>로 닫히지 않음</td><td>창의 입력 통과가 켜져 있으면 키 입력을 받지 못합니다. 우클릭 메뉴에서 입력 통과를 끈 뒤 다시 시도합니다.</td></tr>
-        <tr><td>실시간 화면이 느림</td><td>우클릭 메뉴에서 FPS를 낮추거나 선택 영역을 작게 잡습니다.</td></tr>
-        <tr><td>캡처가 원하는 영역과 다름</td><td>모니터 배율을 바꾼 직후라면 프로그램을 다시 실행해 보세요. 여러 모니터를 사용할 때는 선택 영역이 실제 표시 위치와 맞는지 확인합니다.</td></tr>
+        <tr><td><code>ImportError: libshiboken</code> 또는 <code>PySide6.QtCore</code> 오류</td><td>exe만 따로 옮기지 않았는지 확인합니다. <code>_internal</code> 폴더가 포함된 배포 폴더 전체를 다시 복사하세요.</td></tr>
+        <tr><td>아무 창도 뜨지 않는 것처럼 보임</td><td>트레이 영역의 숨겨진 아이콘을 확인합니다. ScreenAid Studio는 기본적으로 트레이에서 실행됩니다.</td></tr>
+        <tr><td>트레이 아이콘이 보이지 않음</td><td>Windows 작업 표시줄의 숨겨진 아이콘 영역을 열어 봅니다. 그래도 없으면 프로그램을 다시 실행합니다.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>단축키 문제</h2>
+    <table>
+      <thead><tr><th>증상</th><th>해결 방법</th></tr></thead>
+      <tbody>
+        <tr><td>명령 모드가 열리지 않음</td><td>다른 프로그램이 같은 전역 단축키를 사용 중일 수 있습니다. 설정창의 <strong>단축키</strong> 탭에서 다른 조합으로 바꿉니다.</td></tr>
+        <tr><td>명령 모드에서 원하는 키가 동작하지 않음</td><td>설정창의 <strong>명령 모드</strong> 탭에서 같은 키가 여러 명령에 중복되어 있지 않은지 확인합니다.</td></tr>
+        <tr><td><kbd>Esc</kbd>로 고정 화면이나 실시간 화면이 닫히지 않음</td><td>창의 입력 통과가 켜져 있으면 키 입력을 받지 못할 수 있습니다. 우클릭 메뉴에서 입력 통과를 끈 뒤 다시 시도합니다.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>클릭 표시 문제</h2>
+    <table>
+      <thead><tr><th>증상</th><th>확인할 것</th></tr></thead>
+      <tbody>
+        <tr><td>클릭 표시가 보이지 않음</td><td><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>E</kbd>로 임시 숨김 상태가 아닌지 확인합니다. 설정창의 <strong>클릭</strong> 탭에서 클릭 표시 사용과 클릭 종류별 체크 상태도 확인합니다.</td></tr>
+        <tr><td>클릭 이미지가 보이지 않음</td><td>배포 폴더의 <code>resources/click_indicators</code> 아래에 이미지 파일이 있는지 확인합니다. 폴더 전체를 다시 복사하면 대부분 해결됩니다.</td></tr>
+        <tr><td>원하는 클릭 종류만 표시하고 싶음</td><td>설정창의 <strong>클릭</strong> 탭에서 왼쪽, 오른쪽, 양쪽, 휠 클릭, 휠 드래그, 더블클릭을 각각 켜거나 끕니다.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>그리기 문제</h2>
+    <table>
+      <thead><tr><th>증상</th><th>확인할 것</th></tr></thead>
+      <tbody>
+        <tr><td>그리기 중 아래 프로그램이 클릭되지 않음</td><td>정상 동작입니다. 그리기 모드에서는 실수로 아래 프로그램이 움직이지 않도록 입력을 막습니다. 아래 프로그램을 조작하려면 명령 모드에서 <kbd>P</kbd>를 누릅니다.</td></tr>
+        <tr><td>도구 모음이 화면을 가림</td><td>도구 모음을 드래그해서 옮깁니다. 크기가 부담스러우면 설정창의 <strong>그리기 &gt; 도구 모음 버튼 크기</strong>를 줄입니다.</td></tr>
+        <tr><td>지우개가 원하는 방식으로 동작하지 않음</td><td>설정창에서 개체 지우개와 픽셀 지우개 중 원하는 방식을 선택합니다. 개체 지우개는 도형 전체를, 픽셀 지우개는 지나간 부분만 지웁니다.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>캡처와 실시간 화면 문제</h2>
+    <table>
+      <thead><tr><th>증상</th><th>확인할 것</th></tr></thead>
+      <tbody>
+        <tr><td>캡처 위치가 원하는 영역과 다름</td><td>모니터 배율을 바꾼 직후라면 프로그램을 다시 실행해 봅니다. 여러 모니터를 사용할 때는 실제 선택 영역과 표시 위치가 맞는지 확인합니다.</td></tr>
+        <tr><td>실시간 화면이 느림</td><td>우클릭 메뉴에서 FPS를 낮추거나 선택 영역을 작게 잡습니다. 큰 영역을 높은 FPS로 갱신하면 CPU 사용량이 늘어납니다.</td></tr>
+        <tr><td>고정 화면이 아래 프로그램 클릭을 막음</td><td>우클릭 메뉴에서 입력 통과를 켭니다. 다시 창을 조작하려면 입력 통과를 끕니다.</td></tr>
       </tbody>
     </table>
 
