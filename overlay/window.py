@@ -19,10 +19,11 @@ from utils.winapi import set_click_through
 
 
 class OverlayWindow(QWidget):
-    def __init__(self, settings: Settings, bus: EventBus) -> None:
+    def __init__(self, settings: Settings, bus: EventBus, base_dir: Path) -> None:
         super().__init__()
         self.settings = settings
         self.bus = bus
+        self.base_dir = base_dir
         self._click_effect: ClickEffect | None = None
         self._document: DrawingDocument | None = None
         self._preview: Shape | None = None
@@ -356,7 +357,7 @@ class OverlayWindow(QWidget):
     def _load_click_images(self) -> dict[ClickEffectType, QImage]:
         base_dir = Path(self.settings.click_indicator.image_directory)
         if not base_dir.is_absolute():
-            base_dir = Path(__file__).resolve().parents[1] / base_dir
+            base_dir = self.base_dir / base_dir
         names = {
             ClickEffectType.LEFT: "left.png",
             ClickEffectType.RIGHT: "right.png",

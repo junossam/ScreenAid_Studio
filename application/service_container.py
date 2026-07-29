@@ -48,7 +48,7 @@ class ServiceContainer:
         event_bus = EventBus()
         dispatcher = CommandDispatcher()
         state_store = ApplicationStateStore()
-        overlay = OverlayWindow(settings=settings, bus=event_bus)
+        overlay = OverlayWindow(settings=settings, bus=event_bus, base_dir=base_dir)
         drawing = DrawingController(settings=settings.drawing, eraser_settings=settings.eraser, bus=event_bus)
         capture = CaptureManager(settings=settings, bus=event_bus, base_dir=base_dir)
         pinned = PinnedWindowManager(settings=settings, bus=event_bus)

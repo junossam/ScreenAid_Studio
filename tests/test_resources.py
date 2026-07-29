@@ -26,6 +26,14 @@ class ResourceTests(unittest.TestCase):
     def test_tray_icon_exists(self) -> None:
         self.assertTrue(Path("resources/tray_icon.ico").exists())
 
+    def test_overlay_loads_click_images_from_app_base_dir(self) -> None:
+        source = Path("overlay/window.py").read_text(encoding="utf-8")
+        container = Path("application/service_container.py").read_text(encoding="utf-8")
+
+        self.assertIn("base_dir: Path", source)
+        self.assertIn("self.base_dir / base_dir", source)
+        self.assertIn("OverlayWindow(settings=settings, bus=event_bus, base_dir=base_dir)", container)
+
 
 if __name__ == "__main__":
     unittest.main()
