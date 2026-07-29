@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.test_tmp/
+.tmp/
+build/
+dist/
+logs/
+cache/
+*.spec
+!ScreenAidStudio.spec
+captures/
+user_data/
