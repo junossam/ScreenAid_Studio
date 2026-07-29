@@ -144,6 +144,42 @@ main { padding: 26px 0 44px; }
   margin-top: 18px;
 }
 
+.feature-band {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 22px;
+  margin: 18px 0;
+}
+
+.screenshot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin: 18px 0;
+}
+
+.screenshot {
+  display: block;
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.screenshot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-bottom: 1px solid var(--line);
+}
+
+.screenshot figcaption {
+  padding: 12px 14px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
 .preview {
   max-width: 100%;
   border: 1px solid var(--line);
