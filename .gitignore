@@ -1,16 +1,41 @@
-.venv/
+# Python cache
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Test and tool cache
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
 .test_tmp/
 .tmp/
+
+# Build and packaging output
 build/
 dist/
-logs/
-cache/
+*.manifest
 *.spec
 !ScreenAidStudio.spec
-captures/
+
+# Local runtime data
 user_data/
+captures/
+logs/
+cache/
+
+# Local environment and editor files
+.env
+.envrc
+.vscode/
+.idea/
+*.log
+*.tmp
+*.bak
