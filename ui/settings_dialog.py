@@ -34,6 +34,8 @@ from ui.settings_tabs import (
     build_drawing_tab,
     build_general_tab,
     build_live_tab,
+    build_magnifier_tab,
+    build_notification_tab,
     build_overlay_tab,
     build_pinned_tab,
 )
@@ -68,9 +70,11 @@ class SettingsDialog(QDialog):
             (build_overlay_tab(self), "settings.tab.overlay"),
             (build_click_tab(self), "settings.tab.click"),
             (build_capture_tab(self), "settings.tab.capture"),
+            (build_notification_tab(self), "settings.tab.notification"),
             (build_drawing_tab(self), "settings.tab.drawing"),
             (build_pinned_tab(self), "settings.tab.pinned"),
             (build_live_tab(self), "settings.tab.live"),
+            (build_magnifier_tab(self), "settings.tab.magnifier"),
             (build_hotkeys_tab(self), "settings.tab.hotkeys"),
             (build_command_mode_tab(self), "settings.tab.command_mode"),
             (build_region_tab(self), "settings.tab.region"),
@@ -152,6 +156,22 @@ class SettingsDialog(QDialog):
             self.middle_color,
             self.wheel_color,
             self.outline_color,
+        )
+        for widget in widgets:
+            widget.setEnabled(enabled)
+
+    def _sync_notification_option_state(self, enabled: bool) -> None:
+        widgets = (
+            self.notification_capture_completed,
+            self.notification_capture_failed,
+            self.notification_hotkey_failed,
+            self.notification_pin_failed,
+            self.notification_live_failed,
+            self.notification_drawing_mode_changed,
+            self.notification_pause_changed,
+            self.notification_command_blocked,
+            self.notification_click_effects_changed,
+            self.notification_manual_failed,
         )
         for widget in widgets:
             widget.setEnabled(enabled)

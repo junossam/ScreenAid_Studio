@@ -9,6 +9,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class TrayIconTest(unittest.TestCase):
+    def test_app_sets_windows_notification_identity(self) -> None:
+        source = (ROOT / "app.py").read_text(encoding="utf-8")
+
+        self.assertIn("SetCurrentProcessExplicitAppUserModelID", source)
+        self.assertIn("APP_USER_MODEL_ID = APP_NAME", source)
+        self.assertIn("setApplicationName(APP_NAME)", source)
+        self.assertIn("setApplicationDisplayName(APP_NAME)", source)
+        self.assertIn('setOrganizationName("JunoSsam")', source)
+
     def test_tray_activation_shows_menu_explicitly(self) -> None:
         source = (ROOT / "tray/tray_icon.py").read_text(encoding="utf-8")
         tree = ast.parse(source)
@@ -65,6 +74,18 @@ class TrayIconTest(unittest.TestCase):
         self.assertIn("drawing.mode.changed", source)
         self.assertIn("app.pause.changed", source)
         self.assertIn("base_dir / \"resources\" / \"tray_icon.ico\"", source)
+
+    def test_tray_notifications_are_configurable(self) -> None:
+        source = (ROOT / "tray" / "tray_icon.py").read_text(encoding="utf-8")
+        settings = (ROOT / "config" / "settings.py").read_text(encoding="utf-8")
+
+        self.assertIn("NotificationSettings", settings)
+        self.assertIn("_notification_enabled", source)
+        self.assertIn("_show_notification", source)
+        self.assertIn('self.bus.subscribe("settings.saved", self._settings_saved)', source)
+        self.assertIn('self._show_notification("capture_completed"', source)
+        self.assertIn('"drawing_mode_changed"', source)
+        self.assertNotIn("self.settings.capture.show_notification", source)
 
 
 if __name__ == "__main__":

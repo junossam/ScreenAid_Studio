@@ -42,6 +42,7 @@ COMMAND_MODE_COMMANDS = {
     "pin_last_capture": CommandId.PIN_LAST_CAPTURE,
     "live_region": CommandId.LIVE_REGION,
     "live_stop_all": CommandId.LIVE_STOP_ALL,
+    "fullscreen_magnifier": CommandId.FULLSCREEN_MAGNIFIER,
     "open_settings": CommandId.OPEN_SETTINGS,
     "toggle_pause": CommandId.TOGGLE_PAUSE,
 }
@@ -53,7 +54,7 @@ COMMAND_MODE_GROUPS = (
         "command_mode.group.capture",
         ("capture_region", "capture_last_region", "capture_monitor", "capture_virtual", "capture_window"),
     ),
-    ("command_mode.group.windows", ("pin_region", "pin_last_capture", "live_region", "live_stop_all")),
+    ("command_mode.group.windows", ("pin_region", "pin_last_capture", "live_region", "live_stop_all", "fullscreen_magnifier")),
     ("command_mode.group.settings", ("open_settings",)),
 )
 
@@ -94,6 +95,7 @@ class CommandModeService(Service):
         self.dispatcher = dispatcher
         self.bus = bus
         self._hook = None
+        self._active = False
         self._proc = LowLevelKeyboardProc(self._callback)
         self._subscriptions: list[Subscription] = []
         self._emitter = _KeyEmitter()
@@ -110,12 +112,14 @@ class CommandModeService(Service):
             self.bus.subscribe("command_mode.open", self._open),
             self.bus.subscribe("settings.saved", self._settings_saved),
         ]
+        self._install_hook()
 
     def stop(self) -> None:
         for subscription in self._subscriptions:
             self.bus.unsubscribe(subscription)
         self._subscriptions.clear()
         self._deactivate()
+        self._uninstall_hook()
         self._hint.close()
 
     def _open(self, _event: Event) -> None:
@@ -124,25 +128,35 @@ class CommandModeService(Service):
         self._activate()
 
     def _activate(self) -> None:
-        if self._hook:
-            self._timer.start(self.settings.timeout_ms)
-            return
-        self._hook = user32.SetWindowsHookExW(WH_KEYBOARD_LL, self._proc, None, 0)
         if not self._hook:
-            self.bus.publish("hotkey.failed", error="Command mode keyboard hook failed")
+            self._install_hook()
+        if not self._hook:
             return
-        self._hint.show_keys(self._hint_text())
+        self._active = True
+        if self.settings.show_hint:
+            self._hint.show_keys(self._hint_text())
         self._timer.start(self.settings.timeout_ms)
 
     def _deactivate(self) -> None:
         self._timer.stop()
         self._hint.hide()
+        self._active = False
+
+    def _install_hook(self) -> None:
         if self._hook:
-            user32.UnhookWindowsHookEx(self._hook)
-            self._hook = None
+            return
+        self._hook = user32.SetWindowsHookExW(WH_KEYBOARD_LL, self._proc, None, 0)
+        if not self._hook:
+            self.bus.publish("hotkey.failed", error="Command mode keyboard hook failed")
+
+    def _uninstall_hook(self) -> None:
+        if not self._hook:
+            return
+        user32.UnhookWindowsHookEx(self._hook)
+        self._hook = None
 
     def _callback(self, code: int, wparam: int, lparam: int) -> int:
-        if code == HC_ACTION and wparam in {WM_KEYDOWN, WM_SYSKEYDOWN}:
+        if self._active and code == HC_ACTION and wparam in {WM_KEYDOWN, WM_SYSKEYDOWN}:
             data = ctypes.cast(lparam, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
             self._emitter.key_pressed.emit(int(data.vkCode))
             return 1

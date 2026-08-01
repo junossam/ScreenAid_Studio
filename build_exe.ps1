@@ -20,7 +20,18 @@ if ($LASTEXITCODE -ne 0) {
 } else {
     Write-Host "Build dependencies already installed."
 }
-& $python -m PyInstaller --clean --noconfirm ScreenAidStudio.spec
+& $python -m PyInstaller `
+    --clean `
+    --noconfirm `
+    --onedir `
+    --windowed `
+    --name ScreenAidStudio `
+    --contents-directory internal `
+    --icon (Join-Path $PSScriptRoot 'resources\tray_icon.ico') `
+    --version-file (Join-Path $PSScriptRoot 'version_info.txt') `
+    --runtime-hook (Join-Path $PSScriptRoot 'hooks\pyi_rth_screenaid_paths.py') `
+    --specpath (Join-Path $buildTemp 'spec') `
+    main.py
 
 $dist = Join-Path $PSScriptRoot 'dist\ScreenAidStudio'
 New-Item -ItemType Directory -Force -Path (Join-Path $dist 'config') | Out-Null

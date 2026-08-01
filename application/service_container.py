@@ -13,6 +13,7 @@ from core.event_bus import EventBus
 from core.hotkeys import HotkeyManager
 from drawing.controller import DrawingController
 from live_view.manager import LiveViewManager
+from magnifier.window import MagnifierWindow
 from mouse.hook import GlobalMouseHook
 from overlay.window import OverlayWindow
 from pinned.manager import PinnedWindowManager
@@ -35,6 +36,7 @@ class ServiceContainer:
     capture: CaptureManager
     pinned: PinnedWindowManager
     live_view: LiveViewManager
+    magnifier: MagnifierWindow
     mouse: GlobalMouseHook
     hotkeys: HotkeyManager
     command_mode: CommandModeService
@@ -53,6 +55,7 @@ class ServiceContainer:
         capture = CaptureManager(settings=settings, bus=event_bus, base_dir=base_dir)
         pinned = PinnedWindowManager(settings=settings, bus=event_bus)
         live_view = LiveViewManager(settings=settings, bus=event_bus)
+        magnifier = MagnifierWindow(settings=settings.magnifier, bus=event_bus)
         mouse = GlobalMouseHook(bus=event_bus)
         hotkeys = HotkeyManager(dispatcher=dispatcher, hotkeys=settings.hotkeys, bus=event_bus)
         command_mode = CommandModeService(settings.command_mode, dispatcher=dispatcher, bus=event_bus)
@@ -87,6 +90,7 @@ class ServiceContainer:
             capture=capture,
             pinned=pinned,
             live_view=live_view,
+            magnifier=magnifier,
             mouse=mouse,
             hotkeys=hotkeys,
             command_mode=command_mode,

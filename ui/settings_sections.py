@@ -35,6 +35,7 @@ COMMAND_KEY_DEFAULTS = {
     "pin_last_capture": "B",
     "live_region": "G",
     "live_stop_all": "X",
+    "fullscreen_magnifier": "F",
     "open_settings": "S",
     "toggle_pause": "Space",
 }
@@ -95,8 +96,10 @@ def build_hotkeys_tab(dialog) -> QWidget:
 def build_command_mode_tab(dialog) -> QWidget:
     widget = QWidget()
     layout = QFormLayout(widget)
+    dialog.command_mode_show_hint = QCheckBox()
     dialog.command_mode_timeout = dialog._spin(500, 30000)
     dialog.command_key_fields = {}
+    layout.addRow(tr("settings.command_mode_show_hint"), dialog.command_mode_show_hint)
     layout.addRow(tr("settings.command_mode_timeout"), dialog.command_mode_timeout)
     for name in COMMAND_MODE_COMMANDS:
         field = QLineEdit()

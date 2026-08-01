@@ -99,6 +99,7 @@ class TrayIcon(Service):
                 self.bus.subscribe("app.command.blocked", self._command_blocked),
                 self.bus.subscribe("click_effects.temp.changed", self._click_effects_changed),
                 self.bus.subscribe("manual.failed", self._manual_failed),
+                self.bus.subscribe("settings.saved", self._settings_saved),
             ]
         self._restore_tray_icon()
 
@@ -211,7 +212,7 @@ class TrayIcon(Service):
         self._tray.setToolTip(f"{tr('app.title')}({', '.join(self._status_texts())})")
 
     def _capture_completed(self, event: Event) -> None:
-        if not self.settings.capture.show_notification:
+        if not self._notification_enabled("capture_completed"):
             return
         result = event.payload["result"]
         message = tr("notify.capture_completed", width=result.width, height=result.height)
@@ -220,35 +221,35 @@ class TrayIcon(Service):
         saved_path = event.payload.get("saved_path")
         if saved_path:
             message += f"\n{tr('notify.saved', path=saved_path)}"
-        self._tray.showMessage(tr("app.title"), message, QSystemTrayIcon.MessageIcon.Information, 1800)
+        self._show_notification("capture_completed", message, QSystemTrayIcon.MessageIcon.Information, 1800)
 
     def _capture_failed(self, event: Event) -> None:
-        self._tray.showMessage(
-            tr("app.title"),
+        self._show_notification(
+            "capture_failed",
             tr("notify.capture_failed", error=event.payload.get("error", "unknown error")),
             QSystemTrayIcon.MessageIcon.Warning,
             2200,
         )
 
     def _hotkey_failed(self, event: Event) -> None:
-        self._tray.showMessage(
-            tr("app.title"),
+        self._show_notification(
+            "hotkey_failed",
             tr("notify.hotkey_failed", error=event.payload.get("error", "unknown error")),
             QSystemTrayIcon.MessageIcon.Warning,
             2600,
         )
 
     def _pin_failed(self, event: Event) -> None:
-        self._tray.showMessage(
-            tr("app.title"),
+        self._show_notification(
+            "pin_failed",
             tr("notify.pin_failed", error=event.payload.get("error", "unknown error")),
             QSystemTrayIcon.MessageIcon.Warning,
             2200,
         )
 
     def _live_failed(self, event: Event) -> None:
-        self._tray.showMessage(
-            tr("app.title"),
+        self._show_notification(
+            "live_failed",
             tr("notify.live_failed", error=event.payload.get("error", "unknown error")),
             QSystemTrayIcon.MessageIcon.Warning,
             2200,
@@ -259,8 +260,8 @@ class TrayIcon(Service):
         self._drawing = not pass_through
         self._refresh_status()
         message = tr("notify.input_pass_through") if pass_through else tr("notify.drawing_mode")
-        self._tray.showMessage(
-            tr("app.title"),
+        self._show_notification(
+            "drawing_mode_changed",
             message,
             QSystemTrayIcon.MessageIcon.Information,
             1200,
@@ -275,16 +276,16 @@ class TrayIcon(Service):
             self._pause_action.setChecked(paused)
             self._pause_action.setText(tr("tray.resume_all") if paused else tr("tray.pause_all"))
         self._refresh_status()
-        self._tray.showMessage(
-            tr("app.title"),
+        self._show_notification(
+            "pause_changed",
             tr("notify.paused") if paused else tr("notify.resumed"),
             QSystemTrayIcon.MessageIcon.Information,
             1200,
         )
 
     def _command_blocked(self, event: Event) -> None:
-        self._tray.showMessage(
-            tr("app.title"),
+        self._show_notification(
+            "command_blocked",
             event.payload.get("reason", tr("notify.command_blocked")),
             QSystemTrayIcon.MessageIcon.Information,
             1200,
@@ -294,17 +295,38 @@ class TrayIcon(Service):
         enabled = bool(event.payload.get("enabled", True))
         self._click_effects_visible = enabled
         self._refresh_status()
-        self._tray.showMessage(
-            tr("app.title"),
+        self._show_notification(
+            "click_effects_changed",
             tr("notify.click_effects_enabled") if enabled else tr("notify.click_effects_disabled"),
             QSystemTrayIcon.MessageIcon.Information,
             1200,
         )
 
     def _manual_failed(self, event: Event) -> None:
-        self._tray.showMessage(
-            tr("app.title"),
+        self._show_notification(
+            "manual_failed",
             tr("notify.manual_failed", error=event.payload.get("error", "unknown error")),
             QSystemTrayIcon.MessageIcon.Warning,
             2200,
         )
+
+    def _settings_saved(self, event: Event) -> None:
+        settings = event.payload.get("settings")
+        if isinstance(settings, Settings):
+            self.settings = settings
+            self._refresh_status()
+
+    def _notification_enabled(self, name: str) -> bool:
+        notifications = self.settings.notification
+        return notifications.enabled and bool(getattr(notifications, name, True))
+
+    def _show_notification(
+        self,
+        name: str,
+        message: str,
+        icon: QSystemTrayIcon.MessageIcon,
+        milliseconds: int,
+    ) -> None:
+        if not self._notification_enabled(name):
+            return
+        self._tray.showMessage(tr("app.title"), message, icon, milliseconds)

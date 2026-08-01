@@ -15,6 +15,7 @@ def load_dialog_values(dialog) -> None:
     dialog.overlay_opacity.setValue(dialog._float("overlay", "opacity", 1.0))
     _load_click(dialog)
     _load_capture(dialog)
+    _load_notification(dialog)
     _load_drawing(dialog)
     _load_windows(dialog)
     _load_region_and_keys(dialog)
@@ -24,6 +25,7 @@ def save_dialog_values(dialog, close: bool) -> None:
     _save_overlay(dialog)
     _save_click(dialog)
     _save_capture(dialog)
+    _save_notification(dialog)
     _save_drawing(dialog)
     _save_windows(dialog)
     _save_region_and_keys(dialog)
@@ -79,8 +81,27 @@ def _load_capture(dialog) -> None:
     dialog.jpeg_quality.setValue(dialog._int("capture", "jpeg_quality", 90))
     dialog.save_directory.setText(dialog.parser.get("capture", "save_directory", fallback="captures"))
     dialog.filename_pattern.setText(dialog.parser.get("capture", "filename_pattern", fallback="ScreenAidStudio_{date}_{time}"))
-    dialog.show_notification.setChecked(dialog._bool("capture", "show_notification", True))
     dialog.remember_last_region.setChecked(dialog._bool("capture", "remember_last_region", True))
+
+
+def _load_notification(dialog) -> None:
+    dialog.notification_enabled.setChecked(dialog._bool("notification", "enabled", True))
+    dialog.notification_capture_completed.setChecked(
+        dialog._bool("notification", "capture_completed", dialog._bool("capture", "show_notification", True))
+    )
+    for key, control in (
+        ("capture_failed", dialog.notification_capture_failed),
+        ("hotkey_failed", dialog.notification_hotkey_failed),
+        ("pin_failed", dialog.notification_pin_failed),
+        ("live_failed", dialog.notification_live_failed),
+        ("drawing_mode_changed", dialog.notification_drawing_mode_changed),
+        ("pause_changed", dialog.notification_pause_changed),
+        ("command_blocked", dialog.notification_command_blocked),
+        ("click_effects_changed", dialog.notification_click_effects_changed),
+        ("manual_failed", dialog.notification_manual_failed),
+    ):
+        control.setChecked(dialog._bool("notification", key, True))
+    dialog._sync_notification_option_state(dialog.notification_enabled.isChecked())
 
 
 def _load_drawing(dialog) -> None:
@@ -115,6 +136,8 @@ def _load_windows(dialog) -> None:
     dialog.live_min_fps.setValue(dialog._int("live_view", "min_fps", 1))
     dialog.live_max_fps.setValue(dialog._int("live_view", "max_fps", 30))
     dialog.live_queue_size.setValue(dialog._int("live_view", "max_queue_size", 1))
+    dialog.magnifier_enabled.setChecked(dialog._bool("magnifier", "enabled", True))
+    dialog.magnifier_scale.setValue(dialog._float("magnifier", "scale", 2.0))
 
 
 def _load_region_and_keys(dialog) -> None:
@@ -126,6 +149,7 @@ def _load_region_and_keys(dialog) -> None:
     dialog.region_min_height.setValue(dialog._int("region_selection", "minimum_height", 4))
     for name, field in dialog.hotkey_fields.items():
         field.setText(dialog.parser.get("hotkeys", name, fallback=DEFAULT_HOTKEYS[name]))
+    dialog.command_mode_show_hint.setChecked(dialog._bool("command_mode", "show_hint", True))
     dialog.command_mode_timeout.setValue(dialog._int("command_mode", "timeout_ms", 5000))
     for name, field in dialog.command_key_fields.items():
         field.setText(dialog.parser.get("command_mode", name, fallback=COMMAND_KEY_DEFAULTS[name]))
@@ -181,7 +205,6 @@ def _save_capture(dialog) -> None:
         ("copy_to_clipboard", dialog.copy_to_clipboard),
         ("auto_save", dialog.auto_save),
         ("open_pinned_window", dialog.open_pinned),
-        ("show_notification", dialog.show_notification),
         ("remember_last_region", dialog.remember_last_region),
     ):
         dialog._set("capture", key, control.isChecked())
@@ -189,6 +212,24 @@ def _save_capture(dialog) -> None:
     dialog._set("capture", "jpeg_quality", dialog.jpeg_quality.value())
     dialog._set("capture", "save_directory", dialog.save_directory.text().strip())
     dialog._set("capture", "filename_pattern", dialog.filename_pattern.text().strip())
+
+
+def _save_notification(dialog) -> None:
+    for key, control in (
+        ("enabled", dialog.notification_enabled),
+        ("capture_completed", dialog.notification_capture_completed),
+        ("capture_failed", dialog.notification_capture_failed),
+        ("hotkey_failed", dialog.notification_hotkey_failed),
+        ("pin_failed", dialog.notification_pin_failed),
+        ("live_failed", dialog.notification_live_failed),
+        ("drawing_mode_changed", dialog.notification_drawing_mode_changed),
+        ("pause_changed", dialog.notification_pause_changed),
+        ("command_blocked", dialog.notification_command_blocked),
+        ("click_effects_changed", dialog.notification_click_effects_changed),
+        ("manual_failed", dialog.notification_manual_failed),
+    ):
+        dialog._set("notification", key, control.isChecked())
+    dialog._set("capture", "show_notification", dialog.notification_capture_completed.isChecked())
 
 
 def _save_drawing(dialog) -> None:
@@ -226,6 +267,8 @@ def _save_windows(dialog) -> None:
     dialog._set("live_view", "min_fps", dialog.live_min_fps.value())
     dialog._set("live_view", "max_fps", dialog.live_max_fps.value())
     dialog._set("live_view", "max_queue_size", 1)
+    dialog._set("magnifier", "enabled", dialog.magnifier_enabled.isChecked())
+    dialog._set("magnifier", "scale", dialog.magnifier_scale.value())
 
 
 def _save_region_and_keys(dialog) -> None:
@@ -238,6 +281,7 @@ def _save_region_and_keys(dialog) -> None:
     for name, field in dialog.hotkey_fields.items():
         dialog._set("hotkeys", name, field.text().strip())
     dialog._set("command_mode", "enabled", True)
+    dialog._set("command_mode", "show_hint", dialog.command_mode_show_hint.isChecked())
     dialog._set("command_mode", "timeout_ms", dialog.command_mode_timeout.value())
     for name, field in dialog.command_key_fields.items():
         dialog._set("command_mode", name, field.text().strip())

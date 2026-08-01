@@ -25,3 +25,4 @@ class CommandId(StrEnum):
     PIN_LAST_CAPTURE = "pin.last_capture"
     LIVE_REGION = "live.region"
     LIVE_STOP_ALL = "live.stop_all"
+    FULLSCREEN_MAGNIFIER = "magnifier.fullscreen"

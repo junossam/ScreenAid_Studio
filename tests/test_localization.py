@@ -20,7 +20,7 @@ class LocalizationTest(unittest.TestCase):
         configure_localization(ROOT / "locales", "ko")
 
         self.assertEqual("설정", tr("tray.settings"))
-        self.assertEqual("저작권/설명", tr("settings.tab.about"))
+        self.assertEqual("프로그램 정보", tr("settings.tab.about"))
         self.assertEqual("settings.title.missing", tr("settings.title.missing"))
 
     def test_source_uses_translation_keys_for_primary_menus(self) -> None:
@@ -32,6 +32,8 @@ class LocalizationTest(unittest.TestCase):
 
         self.assertIn('tr("tray.capture_region")', tray)
         self.assertIn('tr("settings.language")', settings)
+        self.assertIn("build_notification_tab", settings)
+        self.assertIn('tr("settings.notification_enabled")', settings)
         self.assertIn('tr("pinned.copy_annotated")', pinned)
         self.assertIn('tr("live.pin_current_frame")', live)
 

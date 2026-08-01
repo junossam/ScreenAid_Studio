@@ -29,6 +29,11 @@ class SettingsTests(unittest.TestCase):
         self.assertTrue(settings.drawing.pass_through_on_start)
         self.assertTrue(settings.capture.enabled)
         self.assertTrue(settings.capture.copy_to_clipboard)
+        self.assertTrue(settings.notification.enabled)
+        self.assertTrue(settings.notification.capture_completed)
+        self.assertTrue(settings.notification.capture_failed)
+        self.assertTrue(settings.notification.drawing_mode_changed)
+        self.assertTrue(settings.notification.click_effects_changed)
         self.assertTrue(settings.pinned_window.enabled)
         self.assertEqual(settings.pinned_window.default_zoom, 1.0)
         self.assertTrue(settings.live_view.enabled)
@@ -39,6 +44,7 @@ class SettingsTests(unittest.TestCase):
         self.assertNotIn("toggle_drawing", settings.hotkeys.values)
         self.assertNotIn("toggle_pause", settings.hotkeys.values)
         self.assertTrue(settings.command_mode.enabled)
+        self.assertTrue(settings.command_mode.show_hint)
         self.assertEqual(settings.command_mode.timeout_ms, 5000)
         self.assertEqual(settings.command_mode.keys["toggle_overlay"], "O")
         self.assertEqual(settings.command_mode.keys["toggle_click_effects"], "E")
@@ -46,9 +52,11 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings.command_mode.keys["clear_drawing"], "C")
         self.assertEqual(settings.command_mode.keys["pin_last_capture"], "B")
         self.assertEqual(settings.command_mode.keys["live_stop_all"], "X")
+        self.assertEqual(settings.command_mode.keys["fullscreen_magnifier"], "F")
         self.assertEqual(settings.command_mode.keys["toggle_pause"], "Space")
         self.assertEqual(settings.region_selection.minimum_width, 4)
-        self.assertFalse(settings.magnifier.enabled)
+        self.assertTrue(settings.magnifier.enabled)
+        self.assertEqual(settings.magnifier.scale, 2.0)
 
 
 if __name__ == "__main__":

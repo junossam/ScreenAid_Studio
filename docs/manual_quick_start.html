@@ -7,14 +7,15 @@
   <link rel="stylesheet" href="manual.css">
 </head>
 <body>
-  <header><div class="shell"><div class="hero"><img src="../resources/tray_icon_preview.png" alt="ScreenAid Studio 아이콘"><div><h1>빠른 시작</h1><p class="lead">exe 배포판을 처음 실행하는 사용자를 위한 짧은 안내입니다.</p></div></div><nav><a href="user_manual.html">처음</a><a href="manual_features_shortcuts.html">기능과 단축키</a><a href="manual_settings.html">속성 설정</a><a href="manual_troubleshooting.html">문제 해결</a></nav></div></header>
+  <header><div class="shell"><div class="hero"><img src="../resources/tray_icon_preview.png" alt="ScreenAid Studio 아이콘"><div><h1>빠른 시작</h1><p class="lead">처음 실행하는 사용자를 위한 짧은 안내입니다.</p></div></div><nav><a href="user_manual.html">처음</a><a href="manual_features_shortcuts.html">기능과 단축키</a><a href="manual_settings.html">속성 설정</a><a href="manual_troubleshooting.html">문제 해결</a></nav></div></header>
   <main class="shell">
-    <h2>1. 다운로드</h2>
-    <p>메인 페이지의 <strong>실행 파일 다운로드</strong> 링크에서 ScreenAid Studio 배포 파일을 내려받습니다. 폴더 배포판을 받았다면 압축을 풀고 폴더 안의 <code>ScreenAidStudio.exe</code>를 실행합니다.</p>
-    <p class="note">배포판은 exe 파일만 단독으로 옮기는 방식이 아니라, <code>_internal</code>, <code>docs</code>, <code>resources</code>, <code>locales</code>, <code>config</code> 폴더가 함께 있는 전체 폴더를 사용하는 방식입니다.</p>
+    <h2>1. 최신버전 파일 다운로드</h2>
+    <p>메인 페이지의 <strong>최신버전 파일 다운로드</strong> 버튼을 누르거나 아래 링크에서 GitHub Releases 페이지를 엽니다. 가장 최신 버전의 <code>ScreenAidStudio.zip</code> 파일을 내려받으세요.</p>
+    <p><a class="button primary" href="https://github.com/junossam/ScreenAid_Studio/releases">최신버전 파일 다운로드</a></p>
+    <p class="note">배포판은 exe 파일만 단독으로 옮기는 방식이 아닙니다. 압축을 풀면 생기는 <strong>ScreenAidStudio 폴더 전체</strong>를 그대로 사용하세요.</p>
 
     <h2>2. 실행</h2>
-    <p><code>ScreenAidStudio.exe</code>를 더블클릭합니다. 실행 후 큰 창이 뜨지 않고 Windows 작업 표시줄 오른쪽의 트레이 영역에 ScreenAid Studio 아이콘이 표시됩니다. 처음 실행하거나 설정창 표시 옵션이 켜져 있으면 설정창이 함께 열릴 수 있습니다.</p>
+    <p>압축을 푼 폴더 안의 <code>ScreenAidStudio.exe</code>를 더블클릭합니다. 실행 후 큰 창이 뜨지 않고 Windows 작업 표시줄 오른쪽 트레이 영역에 ScreenAid Studio 아이콘이 표시됩니다.</p>
     <p><img class="preview" src="../resources/tray_icon_preview.png" alt="트레이 아이콘 미리보기"></p>
 
     <h2>3. 기본 조작</h2>
@@ -28,16 +29,17 @@
         <tr><td>영역 캡처</td><td>명령 모드에서 <kbd>R</kbd>을 누른 뒤 영역을 드래그합니다.</td></tr>
         <tr><td>고정 화면 열기</td><td>명령 모드에서 <kbd>K</kbd>를 누른 뒤 영역을 드래그합니다.</td></tr>
         <tr><td>실시간 화면 열기</td><td>명령 모드에서 <kbd>G</kbd>를 누른 뒤 영역을 드래그합니다.</td></tr>
-        <tr><td>클릭 표시 잠시 끄기/켜기</td><td><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>E</kbd>를 누릅니다.</td></tr>
+        <tr><td>전체 화면 확대</td><td>명령 모드에서 <kbd>F</kbd>를 누릅니다.</td></tr>
+        <tr><td>창 닫기</td><td>고정 화면, 실시간 화면, 전체 화면 확대 상태에서 <kbd>Esc</kbd>를 누릅니다.</td></tr>
       </tbody>
     </table>
 
     <h2>4. 종료</h2>
-    <p>트레이 아이콘을 우클릭하고 <strong>종료</strong>를 선택합니다. 설정창의 닫기 버튼을 눌러도 프로그램은 종료되지 않고 트레이에서 계속 실행됩니다.</p>
+    <p>트레이 아이콘을 우클릭하고 <strong>종료</strong>를 선택합니다. 설정창의 닫기 버튼은 프로그램 종료가 아니라 설정창만 닫는 동작입니다.</p>
 
-    <h2>배포 폴더 이동</h2>
-    <p class="note">다른 PC나 USB로 옮길 때는 <code>ScreenAidStudio.exe</code>만 복사하지 말고 <strong>ScreenAidStudio 폴더 전체</strong>를 복사하세요. 설정, 설명서, 아이콘, 클릭 표시 이미지, PySide6 실행 파일이 함께 있어야 정상 실행됩니다.</p>
+    <h2>다른 PC로 옮길 때</h2>
+    <p class="note"><code>ScreenAidStudio.exe</code>만 복사하지 말고 <strong>ScreenAidStudio 폴더 전체</strong>를 복사하세요. 실행에 필요한 파일, 설명서, 아이콘, 클릭 표시 이미지, 언어 파일이 함께 있어야 정상 실행됩니다.</p>
   </main>
-  <footer><div class="shell">ScreenAid Studio 0.1.0.0</div></footer>
+  <footer><div class="shell">ScreenAid Studio 0.2.0.0</div></footer>
 </body>
 </html>

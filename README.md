@@ -5,7 +5,7 @@
 ## 저작권과 링크
 
 - 저작권자: `JunoSsam`
-- 버전: `0.1.0.0`
+- 버전: `0.2.0.0`
 - 라이선스: MIT License
 - 사용 범위: 개인, 공공기관, 교육기관, 학교, 강의, 발표, 비영리 및 상업 환경에서 자유롭게 사용 가능
 - 제작 방식: 생성형 인공지능을 활용한 바이브 코딩
@@ -162,6 +162,6 @@ cd ScreenAssistant
 .\build_exe.ps1
 ```
 
-빌드 결과는 `dist\ScreenAidStudio\ScreenAidStudio.exe`입니다. 콘솔 창은 숨김, 관리자 권한 요청 없음, 아이콘은 `resources\tray_icon.ico`, 파일 버전은 `0.1.0.0`, 회사/제작자 이름은 `JunoSsam`으로 설정됩니다.
+빌드 결과는 `dist\ScreenAidStudio\ScreenAidStudio.exe`입니다. 콘솔 창은 숨김, 관리자 권한 요청 없음, 아이콘은 `resources\tray_icon.ico`, 파일 버전은 `0.2.0.0`, 회사/제작자 이름은 `JunoSsam`으로 설정됩니다.
 
 배포 폴더에는 `portable.flag`, `config`, `locales`, `resources`, `docs`, `LICENSE`가 포함됩니다. 사용자 설명서는 트레이 메뉴의 `사용설명서 열기` 또는 설정창의 `저작권/설명` 탭에서 열 수 있습니다.

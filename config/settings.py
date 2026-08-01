@@ -102,6 +102,21 @@ class CaptureSettings:
 
 
 @dataclass(frozen=True)
+class NotificationSettings:
+    enabled: bool
+    capture_completed: bool
+    capture_failed: bool
+    hotkey_failed: bool
+    pin_failed: bool
+    live_failed: bool
+    drawing_mode_changed: bool
+    pause_changed: bool
+    command_blocked: bool
+    click_effects_changed: bool
+    manual_failed: bool
+
+
+@dataclass(frozen=True)
 class PinnedWindowSettings:
     enabled: bool
     default_zoom: float
@@ -132,6 +147,7 @@ class HotkeySettings:
 @dataclass(frozen=True)
 class CommandModeSettings:
     enabled: bool
+    show_hint: bool
     timeout_ms: int
     keys: dict[str, str]
 
@@ -163,6 +179,7 @@ class Settings:
     highlighter: HighlighterSettings
     eraser: EraserSettings
     capture: CaptureSettings
+    notification: NotificationSettings
     pinned_window: PinnedWindowSettings
     live_view: LiveViewSettings
     startup: StartupSettings
@@ -264,6 +281,23 @@ class Settings:
                 show_notification=parser.getboolean("capture", "show_notification", fallback=True),
                 remember_last_region=parser.getboolean("capture", "remember_last_region", fallback=True),
             ),
+            notification=NotificationSettings(
+                enabled=parser.getboolean("notification", "enabled", fallback=True),
+                capture_completed=parser.getboolean(
+                    "notification",
+                    "capture_completed",
+                    fallback=parser.getboolean("capture", "show_notification", fallback=True),
+                ),
+                capture_failed=parser.getboolean("notification", "capture_failed", fallback=True),
+                hotkey_failed=parser.getboolean("notification", "hotkey_failed", fallback=True),
+                pin_failed=parser.getboolean("notification", "pin_failed", fallback=True),
+                live_failed=parser.getboolean("notification", "live_failed", fallback=True),
+                drawing_mode_changed=parser.getboolean("notification", "drawing_mode_changed", fallback=True),
+                pause_changed=parser.getboolean("notification", "pause_changed", fallback=True),
+                command_blocked=parser.getboolean("notification", "command_blocked", fallback=True),
+                click_effects_changed=parser.getboolean("notification", "click_effects_changed", fallback=True),
+                manual_failed=parser.getboolean("notification", "manual_failed", fallback=True),
+            ),
             pinned_window=PinnedWindowSettings(
                 enabled=parser.getboolean("pinned_window", "enabled", fallback=True),
                 default_zoom=max(0.1, parser.getfloat("pinned_window", "default_zoom", fallback=1.0)),
@@ -291,6 +325,7 @@ class Settings:
             ),
             command_mode=CommandModeSettings(
                 enabled=parser.getboolean("command_mode", "enabled", fallback=True),
+                show_hint=parser.getboolean("command_mode", "show_hint", fallback=True),
                 timeout_ms=max(500, parser.getint("command_mode", "timeout_ms", fallback=5000)),
                 keys={
                     "toggle_overlay": parser.get("command_mode", "toggle_overlay", fallback="O"),
@@ -309,6 +344,7 @@ class Settings:
                     "pin_last_capture": parser.get("command_mode", "pin_last_capture", fallback="B"),
                     "live_region": parser.get("command_mode", "live_region", fallback="G"),
                     "live_stop_all": parser.get("command_mode", "live_stop_all", fallback="X"),
+                    "fullscreen_magnifier": parser.get("command_mode", "fullscreen_magnifier", fallback="F"),
                     "open_settings": parser.get("command_mode", "open_settings", fallback="S"),
                     "toggle_pause": parser.get("command_mode", "toggle_pause", fallback="Space"),
                 },
@@ -325,7 +361,7 @@ class Settings:
                 minimum_height=max(1, parser.getint("region_selection", "minimum_height", fallback=4)),
             ),
             magnifier=MagnifierSettings(
-                enabled=parser.getboolean("magnifier", "enabled", fallback=False),
+                enabled=parser.getboolean("magnifier", "enabled", fallback=True),
                 scale=parser.getfloat("magnifier", "scale", fallback=2.0),
                 size=parser.getint("magnifier", "size", fallback=260),
             ),

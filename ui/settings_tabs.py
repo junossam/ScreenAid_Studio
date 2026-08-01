@@ -44,9 +44,13 @@ def build_general_tab(dialog) -> QWidget:
 def build_overlay_tab(dialog) -> QWidget:
     widget = QWidget()
     layout = QFormLayout(widget)
+    description = QLabel(tr("settings.overlay_description"))
+    description.setWordWrap(True)
+    description.setStyleSheet("QLabel { color: #555; padding-bottom: 6px; }")
     dialog.overlay_enabled = QCheckBox()
     dialog.overlay_click_through = QCheckBox()
     dialog.overlay_opacity = dialog._double_spin(0.1, 1.0, 0.05)
+    layout.addRow(description)
     layout.addRow(tr("settings.enable_overlay"), dialog.overlay_enabled)
     layout.addRow(tr("settings.overlay_click_through"), dialog.overlay_click_through)
     layout.addRow(tr("settings.overlay_opacity"), dialog.overlay_opacity)
@@ -111,7 +115,6 @@ def build_capture_tab(dialog) -> QWidget:
     dialog.jpeg_quality = dialog._spin(1, 100)
     dialog.save_directory = QLineEdit()
     dialog.filename_pattern = QLineEdit()
-    dialog.show_notification = QCheckBox()
     dialog.remember_last_region = QCheckBox()
     for label, control in (
         ("settings.enable_capture", dialog.capture_enabled),
@@ -126,10 +129,41 @@ def build_capture_tab(dialog) -> QWidget:
         ("settings.jpeg_quality", dialog.jpeg_quality),
         ("settings.save_directory", dialog.save_directory),
         ("settings.filename_pattern", dialog.filename_pattern),
-        ("settings.show_notification", dialog.show_notification),
         ("settings.remember_last_region", dialog.remember_last_region),
     ):
         layout.addRow(tr(label), control)
+    return widget
+
+
+def build_notification_tab(dialog) -> QWidget:
+    widget = QWidget()
+    layout = QFormLayout(widget)
+    dialog.notification_enabled = QCheckBox()
+    dialog.notification_capture_completed = QCheckBox()
+    dialog.notification_capture_failed = QCheckBox()
+    dialog.notification_hotkey_failed = QCheckBox()
+    dialog.notification_pin_failed = QCheckBox()
+    dialog.notification_live_failed = QCheckBox()
+    dialog.notification_drawing_mode_changed = QCheckBox()
+    dialog.notification_pause_changed = QCheckBox()
+    dialog.notification_command_blocked = QCheckBox()
+    dialog.notification_click_effects_changed = QCheckBox()
+    dialog.notification_manual_failed = QCheckBox()
+    layout.addRow(tr("settings.notification_enabled"), dialog.notification_enabled)
+    for label, control in (
+        ("settings.notification_capture_completed", dialog.notification_capture_completed),
+        ("settings.notification_capture_failed", dialog.notification_capture_failed),
+        ("settings.notification_hotkey_failed", dialog.notification_hotkey_failed),
+        ("settings.notification_pin_failed", dialog.notification_pin_failed),
+        ("settings.notification_live_failed", dialog.notification_live_failed),
+        ("settings.notification_drawing_mode_changed", dialog.notification_drawing_mode_changed),
+        ("settings.notification_pause_changed", dialog.notification_pause_changed),
+        ("settings.notification_command_blocked", dialog.notification_command_blocked),
+        ("settings.notification_click_effects_changed", dialog.notification_click_effects_changed),
+        ("settings.notification_manual_failed", dialog.notification_manual_failed),
+    ):
+        layout.addRow(tr(label), control)
+    dialog.notification_enabled.toggled.connect(dialog._sync_notification_option_state)
     return widget
 
 
@@ -210,6 +244,16 @@ def build_live_tab(dialog) -> QWidget:
     layout.addRow(tr("settings.min_fps"), dialog.live_min_fps)
     layout.addRow(tr("settings.max_fps"), dialog.live_max_fps)
     layout.addRow(tr("settings.live_queue_size"), dialog.live_queue_size)
+    return widget
+
+
+def build_magnifier_tab(dialog) -> QWidget:
+    widget = QWidget()
+    layout = QFormLayout(widget)
+    dialog.magnifier_enabled = QCheckBox()
+    dialog.magnifier_scale = dialog._double_spin(1.1, 5.0, 0.1)
+    layout.addRow(tr("settings.enable_magnifier"), dialog.magnifier_enabled)
+    layout.addRow(tr("settings.magnifier_scale"), dialog.magnifier_scale)
     return widget
 
 

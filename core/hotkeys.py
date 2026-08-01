@@ -20,6 +20,7 @@ VK_B = 0x42
 VK_C = 0x43
 VK_D = 0x44
 VK_E = 0x45
+VK_F = 0x46
 VK_G = 0x47
 VK_I = 0x49
 VK_K = 0x4B
@@ -48,6 +49,7 @@ KEY_NAME_TO_VK = {
     "C": VK_C,
     "D": VK_D,
     "E": VK_E,
+    "F": VK_F,
     "G": VK_G,
     "I": VK_I,
     "K": VK_K,

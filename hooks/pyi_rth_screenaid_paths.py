@@ -19,7 +19,7 @@ def _add_dll_directory(path: Path) -> None:
 
 def _runtime_base_dirs() -> list[Path]:
     exe_dir = Path(sys.executable).resolve().parent
-    bases = [Path(getattr(sys, "_MEIPASS", exe_dir)).resolve(), exe_dir, exe_dir / "_internal"]
+    bases = [Path(getattr(sys, "_MEIPASS", exe_dir)).resolve(), exe_dir, exe_dir / "internal", exe_dir / "_internal"]
     unique: list[Path] = []
     for base in bases:
         if base not in unique:
