@@ -30,7 +30,7 @@ class PackagingConfigTests(unittest.TestCase):
         self.assertIn("docs\\*.html", build_script)
         self.assertIn("docs\\manual.css", build_script)
         self.assertIn("'LICENSE', 'portable.flag'", build_script)
-        self.assertIn("FileVersion', '0.2.1.0", version_info)
+        self.assertIn("FileVersion', '0.2.1.1", version_info)
         self.assertIn("CompanyName', 'JunoSsam", version_info)
 
     def test_portable_flag_and_build_requirements_exist(self) -> None:
