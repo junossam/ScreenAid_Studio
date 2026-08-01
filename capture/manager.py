@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QRect, QTimer
+from PySide6.QtCore import QObject, QRunnable, QRect, Qt, QThreadPool, QTimer, Signal
 from PySide6.QtGui import QCursor
 
 from capture.gdi import GdiCaptureBackend
@@ -16,13 +16,45 @@ from monitor.manager import virtual_screen_qrect
 from utils.winapi import cursor_pos, foreground_window_rect, monitor_info_from_point
 
 
+class _CaptureWorkerSignals(QObject):
+    completed = Signal(object)
+    failed = Signal(str)
+
+
+class _CaptureWorker(QRunnable):
+    def __init__(
+        self,
+        request: CaptureRequest,
+        source_monitor_id: str | None,
+        source_window_handle: int | None,
+    ) -> None:
+        super().__init__()
+        self.setAutoDelete(False)
+        self.request = request
+        self.source_monitor_id = source_monitor_id
+        self.source_window_handle = source_window_handle
+        self.signals = _CaptureWorkerSignals()
+
+    def run(self) -> None:
+        try:
+            result = GdiCaptureBackend().capture_region(self.request)
+            result.source_monitor_id = self.source_monitor_id
+            result.source_window_handle = self.source_window_handle
+            self.signals.completed.emit(result)
+        except Exception as exc:
+            self.signals.failed.emit(str(exc))
+
+
 class CaptureManager(Service):
     def __init__(self, settings: Settings, bus: EventBus, base_dir: Path) -> None:
         self.settings = settings
         self.bus = bus
-        self.backend = GdiCaptureBackend()
         self.clipboard = ClipboardService()
         self.saver = ImageSaveService(settings.capture, base_dir)
+        self._thread_pool = QThreadPool()
+        self._thread_pool.setMaxThreadCount(1)
+        self._capture_running = False
+        self._current_worker: _CaptureWorker | None = None
         self._selection: RegionSelectionOverlay | None = None
         self._last_region: QRect | None = None
         self._subscriptions: list[Subscription] = []
@@ -45,6 +77,8 @@ class CaptureManager(Service):
         if self._selection:
             self._selection.close()
             self._selection = None
+        self._thread_pool.waitForDone(1000)
+        self._current_worker = None
 
     def _start_region_capture(self, _event: Event) -> None:
         if self._selection:
@@ -121,6 +155,9 @@ class CaptureManager(Service):
         source_window_handle: int | None = None,
     ) -> None:
         try:
+            if self._capture_running:
+                self.bus.publish("capture.failed", error="Capture is already running")
+                return
             rect = rect.normalized()
             if rect.isNull() or rect.width() <= 0 or rect.height() <= 0:
                 raise ValueError(f"Invalid capture region: {rect}")
@@ -130,12 +167,24 @@ class CaptureManager(Service):
                 include_annotations=self.settings.capture.include_annotations,
                 include_cursor=self.settings.capture.include_cursor,
             )
-            result = self.backend.capture_region(request)
-            result.source_monitor_id = source_monitor_id
-            result.source_window_handle = source_window_handle
-            self._after_capture(result)
+            worker = _CaptureWorker(request, source_monitor_id, source_window_handle)
+            worker.signals.completed.connect(self._capture_completed, Qt.ConnectionType.QueuedConnection)
+            worker.signals.failed.connect(self._capture_failed, Qt.ConnectionType.QueuedConnection)
+            self._capture_running = True
+            self._current_worker = worker
+            self._thread_pool.start(worker)
         except Exception as exc:
             self.bus.publish("capture.failed", error=str(exc))
+
+    def _capture_completed(self, result: CaptureResult) -> None:
+        self._capture_running = False
+        self._current_worker = None
+        self._after_capture(result)
+
+    def _capture_failed(self, error: str) -> None:
+        self._capture_running = False
+        self._current_worker = None
+        self.bus.publish("capture.failed", error=error)
 
     def _after_capture(self, result: CaptureResult) -> None:
         saved_path = None
