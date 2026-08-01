@@ -108,6 +108,16 @@ class ClickSettingsUiTest(unittest.TestCase):
         self.assertIn("not self._click_effects_enabled()", source)
         self.assertIn("self.settings.click_indicator.enabled and self._click_effects_visible", source)
 
+    def test_click_effect_follows_cursor_until_release(self) -> None:
+        source = (ROOT / "overlay" / "window.py").read_text(encoding="utf-8")
+
+        self.assertIn("_held_click_buttons", source)
+        self.assertIn("hold_until_release=True", source)
+        self.assertIn("self._move_click_effect(mouse_event)", source)
+        self.assertIn("if not self._held_click_buttons:", source)
+        self.assertIn("hold_until_ms=10**15 if hold_until_release", source)
+        self.assertNotIn("MouseEventType.MOVE,\n            MouseEventType.WHEEL", source)
+
 
 if __name__ == "__main__":
     unittest.main()

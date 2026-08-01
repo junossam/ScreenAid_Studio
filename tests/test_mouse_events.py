@@ -63,6 +63,21 @@ class MouseEventTests(unittest.TestCase):
         self.assertTrue(hook._should_block(MouseEvent(MouseEventType.LEFT_DOWN, 10, 20, 30)))
         self.assertFalse(hook._should_block(MouseEvent(MouseEventType.MOVE, 11, 21, 31)))
 
+    def test_drag_move_is_emitted_for_pressed_mouse_buttons(self) -> None:
+        hook = GlobalMouseHook(EventBus())
+
+        self.assertTrue(hook._should_emit(MouseEvent(MouseEventType.LEFT_DOWN, 10, 20, 30)))
+        self.assertTrue(hook._should_emit(MouseEvent(MouseEventType.MOVE, 11, 21, 31)))
+        self.assertTrue(hook._should_emit(MouseEvent(MouseEventType.LEFT_UP, 11, 21, 32)))
+
+        self.assertTrue(hook._should_emit(MouseEvent(MouseEventType.RIGHT_DOWN, 10, 20, 40)))
+        self.assertTrue(hook._should_emit(MouseEvent(MouseEventType.MOVE, 12, 22, 41)))
+        self.assertTrue(hook._should_emit(MouseEvent(MouseEventType.RIGHT_UP, 12, 22, 42)))
+
+        self.assertTrue(hook._should_emit(MouseEvent(MouseEventType.MIDDLE_DOWN, 10, 20, 50)))
+        self.assertTrue(hook._should_emit(MouseEvent(MouseEventType.MOVE, 13, 23, 51)))
+        self.assertTrue(hook._should_emit(MouseEvent(MouseEventType.MIDDLE_UP, 13, 23, 52)))
+
     def test_toolbar_and_popup_events_are_not_emitted_as_drawing_input(self) -> None:
         hook = GlobalMouseHook(EventBus())
         hook._input_exclusions["toolbar"] = (0, 0, 100, 100)

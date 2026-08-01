@@ -43,6 +43,9 @@ WM_MOUSEHWHEEL = 0x020E
 WM_HOTKEY = 0x0312
 HC_ACTION = 0
 VK_ESCAPE = 0x1B
+VK_LBUTTON = 0x01
+VK_RBUTTON = 0x02
+VK_MBUTTON = 0x04
 
 MONITOR_DEFAULTTONEAREST = 2
 LLMHF_INJECTED = 0x00000001
@@ -131,6 +134,8 @@ user32.RegisterWindowMessageW.argtypes = [wintypes.LPCWSTR]
 user32.RegisterWindowMessageW.restype = wintypes.UINT
 user32.GetCursorPos.argtypes = [ctypes.POINTER(POINT)]
 user32.GetCursorPos.restype = wintypes.BOOL
+user32.GetAsyncKeyState.argtypes = [ctypes.c_int]
+user32.GetAsyncKeyState.restype = ctypes.c_short
 user32.GetForegroundWindow.argtypes = []
 user32.GetForegroundWindow.restype = HWND
 user32.GetWindowRect.argtypes = [HWND, ctypes.POINTER(RECT)]
@@ -221,3 +226,7 @@ def window_from_point(x: int, y: int) -> int:
 
 def register_window_message(name: str) -> int:
     return int(user32.RegisterWindowMessageW(name))
+
+
+def mouse_button_down(vk_code: int) -> bool:
+    return bool(user32.GetAsyncKeyState(vk_code) & 0x8000)

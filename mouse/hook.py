@@ -23,6 +23,10 @@ from utils.winapi import (
     WM_MOUSEHWHEEL,
     WM_RBUTTONDOWN,
     WM_RBUTTONUP,
+    VK_LBUTTON,
+    VK_MBUTTON,
+    VK_RBUTTON,
+    mouse_button_down,
     signed_hiword,
     user32,
     window_from_point,
@@ -40,6 +44,8 @@ class GlobalMouseHook(Service):
         self._hook = None
         self._proc = LowLevelMouseProc(self._callback)
         self._left_pressed = False
+        self._right_pressed = False
+        self._middle_pressed = False
         self._overlay_hwnd = 0
         self._block_overlay_input = False
         self._blocking_suspended = False
@@ -118,8 +124,20 @@ class GlobalMouseHook(Service):
         if event.event_type == MouseEventType.LEFT_UP:
             self._left_pressed = False
             return True
+        if event.event_type == MouseEventType.RIGHT_DOWN:
+            self._right_pressed = True
+            return True
+        if event.event_type == MouseEventType.RIGHT_UP:
+            self._right_pressed = False
+            return True
+        if event.event_type == MouseEventType.MIDDLE_DOWN:
+            self._middle_pressed = True
+            return True
+        if event.event_type == MouseEventType.MIDDLE_UP:
+            self._middle_pressed = False
+            return True
         if event.event_type == MouseEventType.MOVE:
-            return self._left_pressed
+            return self._any_button_pressed()
         return True
 
     def _update_pressed_state(self, event: MouseEvent) -> None:
@@ -127,6 +145,24 @@ class GlobalMouseHook(Service):
             self._left_pressed = True
         elif event.event_type == MouseEventType.LEFT_UP:
             self._left_pressed = False
+        elif event.event_type == MouseEventType.RIGHT_DOWN:
+            self._right_pressed = True
+        elif event.event_type == MouseEventType.RIGHT_UP:
+            self._right_pressed = False
+        elif event.event_type == MouseEventType.MIDDLE_DOWN:
+            self._middle_pressed = True
+        elif event.event_type == MouseEventType.MIDDLE_UP:
+            self._middle_pressed = False
+
+    def _any_button_pressed(self) -> bool:
+        return (
+            self._left_pressed
+            or self._right_pressed
+            or self._middle_pressed
+            or mouse_button_down(VK_LBUTTON)
+            or mouse_button_down(VK_RBUTTON)
+            or mouse_button_down(VK_MBUTTON)
+        )
 
     def _should_block(self, event: MouseEvent) -> bool:
         if event.injected or not self._block_overlay_input or self._blocking_suspended:

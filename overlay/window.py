@@ -30,6 +30,7 @@ class OverlayWindow(QWidget):
         self._renderer = ShapeRenderer()
         self._coordinates = ScreenCoordinateMapper()
         self._button_tracker = ClickButtonTracker()
+        self._held_click_buttons: set[MouseEventType] = set()
         self._click_images = self._load_click_images()
         self._cursor_color = settings.drawing.color
         self._pen_cursor = self._create_pen_cursor(self._cursor_color)
@@ -102,22 +103,20 @@ class OverlayWindow(QWidget):
             return
         if not self._click_effects_enabled():
             return
-        if mouse_event.event_type in {
-            MouseEventType.LEFT_DOWN,
-            MouseEventType.RIGHT_DOWN,
-            MouseEventType.MIDDLE_DOWN,
-            MouseEventType.MOVE,
-            MouseEventType.WHEEL,
-            MouseEventType.HWHEEL,
-        }:
-            self._start_click_effect(mouse_event)
-        elif mouse_event.event_type in {
-            MouseEventType.LEFT_UP,
-            MouseEventType.RIGHT_UP,
-            MouseEventType.MIDDLE_UP,
-        }:
+        if mouse_event.event_type in self._press_events():
+            self._held_click_buttons.add(mouse_event.event_type)
+            self._start_click_effect(mouse_event, hold_until_release=True)
+        elif mouse_event.event_type == MouseEventType.MOVE:
+            if self._held_click_buttons:
+                self._move_click_effect(mouse_event)
+        elif mouse_event.event_type in {MouseEventType.WHEEL, MouseEventType.HWHEEL}:
+            self._start_click_effect(mouse_event, hold_until_release=False)
+        elif mouse_event.event_type in self._release_events():
             self._button_tracker.apply(mouse_event)
-            self._release_click_effect()
+            self._held_click_buttons.discard(self._matching_press_event(mouse_event.event_type))
+            self._move_click_effect(mouse_event)
+            if not self._held_click_buttons:
+                self._release_click_effect()
 
     def mousePressEvent(self, event) -> None:
         if self._pass_through or event.button() != Qt.MouseButton.LeftButton:
@@ -169,13 +168,14 @@ class OverlayWindow(QWidget):
         self._click_effect = None
         self._preview = None
         self._button_tracker.reset()
+        self._held_click_buttons.clear()
         self._animation_timer.stop()
         self.update()
 
     def _to_local_rect(self, rect: QRect) -> QRect:
         return rect.translated(-self._origin.x(), -self._origin.y())
 
-    def _start_click_effect(self, event: MouseEvent) -> None:
+    def _start_click_effect(self, event: MouseEvent, *, hold_until_release: bool) -> None:
         effect_type = self._effect_type(event)
         if effect_type is None:
             return
@@ -190,13 +190,21 @@ class OverlayWindow(QWidget):
             outline_color=self.settings.click_indicator.outline_color,
             width=self.settings.click_indicator.width,
             created_ms=now,
-            hold_until_ms=now + self.settings.click_indicator.duration_ms,
+            hold_until_ms=10**15 if hold_until_release else now + self.settings.click_indicator.duration_ms,
             fade_ms=self.settings.click_indicator.fade_ms,
         )
         dirty = old_dirty.united(self._effect_dirty_bounds(self._click_effect))
         self.update(self._to_local_rect(dirty))
         if not self._animation_timer.isActive():
             self._animation_timer.start()
+
+    def _move_click_effect(self, event: MouseEvent) -> None:
+        if not self._click_effect:
+            return
+        old_dirty = self._effect_dirty_bounds(self._click_effect)
+        self._click_effect.center = self._physical_to_qt_point(event.x, event.y)
+        dirty = old_dirty.united(self._effect_dirty_bounds(self._click_effect))
+        self.update(self._to_local_rect(dirty))
 
     def _release_click_effect(self) -> None:
         if not self._click_effect:
@@ -326,6 +334,7 @@ class OverlayWindow(QWidget):
         if not self._click_effects_enabled():
             self._click_effect = None
             self._button_tracker.reset()
+            self._held_click_buttons.clear()
             self._animation_timer.stop()
             self.update()
 
@@ -334,6 +343,7 @@ class OverlayWindow(QWidget):
         if not self._click_effects_visible:
             self._click_effect = None
             self._button_tracker.reset()
+            self._held_click_buttons.clear()
             self._animation_timer.stop()
             self.update()
         self.bus.publish("click_effects.temp.changed", enabled=self._click_effects_visible)
@@ -408,6 +418,7 @@ class OverlayWindow(QWidget):
             self._click_effect = None
             self._preview = None
             self._button_tracker.reset()
+            self._held_click_buttons.clear()
             self._animation_timer.stop()
         self._apply_input_mode()
         self.update()
@@ -496,3 +507,20 @@ class OverlayWindow(QWidget):
 
     def _physical_to_qt_point(self, x: int, y: int) -> QPoint:
         return self._coordinates.physical_to_qt_point(x, y)
+
+    @staticmethod
+    def _press_events() -> set[MouseEventType]:
+        return {MouseEventType.LEFT_DOWN, MouseEventType.RIGHT_DOWN, MouseEventType.MIDDLE_DOWN}
+
+    @staticmethod
+    def _release_events() -> set[MouseEventType]:
+        return {MouseEventType.LEFT_UP, MouseEventType.RIGHT_UP, MouseEventType.MIDDLE_UP}
+
+    @staticmethod
+    def _matching_press_event(event_type: MouseEventType) -> MouseEventType:
+        mapping = {
+            MouseEventType.LEFT_UP: MouseEventType.LEFT_DOWN,
+            MouseEventType.RIGHT_UP: MouseEventType.RIGHT_DOWN,
+            MouseEventType.MIDDLE_UP: MouseEventType.MIDDLE_DOWN,
+        }
+        return mapping[event_type]
