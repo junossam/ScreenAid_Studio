@@ -3,10 +3,11 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from PySide6.QtCore import QPoint, QRect, Qt
-from PySide6.QtGui import QColor, QFont, QGuiApplication, QPainter, QPen
+from PySide6.QtGui import QColor, QFont, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
 from config.settings import RegionSelectionSettings
+from overlay.coordinates import ScreenCoordinateMapper
 
 
 SelectionCallback = Callable[[QRect | None], None]
@@ -21,6 +22,7 @@ class RegionSelectionOverlay(QWidget):
         self._start: QPoint | None = None
         self._current: QPoint | None = None
         self._completed = False
+        self._coordinates = ScreenCoordinateMapper()
         self._setup_window()
 
     def begin(self) -> None:
@@ -80,13 +82,14 @@ class RegionSelectionOverlay(QWidget):
             event.ignore()
             return
         self._current = event.position().toPoint()
-        rect = self._selection_rect_global()
+        selection = self._selection_rect_local()
         if (
-            rect.width() < self.settings.minimum_width
-            or rect.height() < self.settings.minimum_height
+            selection.width() < self.settings.minimum_width
+            or selection.height() < self.settings.minimum_height
         ):
             self._finish(None)
             return
+        rect = self._selection_rect_global()
         self._finish(rect)
         event.accept()
 
@@ -114,7 +117,8 @@ class RegionSelectionOverlay(QWidget):
         return QRect(self._start, self._current).normalized()
 
     def _selection_rect_global(self) -> QRect:
-        return self._selection_rect_local().translated(self._origin)
+        qt_rect = self._selection_rect_local().translated(self._origin)
+        return self._coordinates.qt_to_physical_rect(qt_rect)
 
     def _finish(self, rect: QRect | None) -> None:
         if self._completed:
@@ -124,10 +128,10 @@ class RegionSelectionOverlay(QWidget):
         self.on_done(rect)
 
     def _paint_label(self, painter: QPainter, selection: QRect) -> None:
-        text = f"{selection.width()} x {selection.height()}"
+        physical_rect = self._coordinates.qt_to_physical_rect(selection.translated(self._origin))
+        text = f"{physical_rect.width()} x {physical_rect.height()}"
         if self.settings.show_coordinates:
-            global_rect = selection.translated(self._origin)
-            text = f"{text}  {global_rect.left()}, {global_rect.top()}"
+            text = f"{text}  {physical_rect.left()}, {physical_rect.top()}"
         label_rect = QRect(selection.left(), selection.top() - 28, 160, 22)
         if label_rect.top() < 0:
             label_rect.moveTop(selection.bottom() + 6)
@@ -137,10 +141,4 @@ class RegionSelectionOverlay(QWidget):
         painter.drawText(label_rect.adjusted(6, 0, -6, 0), Qt.AlignmentFlag.AlignVCenter, text)
 
     def _virtual_screen_rect(self) -> QRect:
-        screens = QGuiApplication.screens()
-        if not screens:
-            return QRect(0, 0, 1, 1)
-        rect = screens[0].geometry()
-        for screen in screens[1:]:
-            rect = rect.united(screen.geometry())
-        return rect
+        return self._coordinates.qt_virtual_screen_rect()

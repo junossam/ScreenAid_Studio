@@ -8,6 +8,7 @@ from config.settings import LiveViewSettings
 from core.event_bus import EventBus
 from core.localization import tr
 from live_view.worker import LiveCaptureWorker
+from overlay.coordinates import ScreenCoordinateMapper
 from utils.winapi import set_click_through
 
 
@@ -21,6 +22,8 @@ class LiveViewWindow(QWidget):
         self.source_rect = rect.normalized()
         self.settings = settings
         self.bus = bus
+        self._coordinates = ScreenCoordinateMapper()
+        self._display_rect = self._coordinates.physical_to_qt_rect(self.source_rect)
         self._fps = self._clamp_fps(settings.default_fps)
         self._zoom = 1.0
         self._click_through = False
@@ -177,7 +180,7 @@ class LiveViewWindow(QWidget):
         if self._latest_image.isNull():
             self.bus.publish("pin.failed", error="No live frame is available")
             return
-        self.bus.publish("pin.image", image=self._latest_image.copy())
+        self.bus.publish("pin.image", image=self._latest_image.copy(), display_size=QSize(self.size()))
 
     def _setup_window(self) -> None:
         self.setWindowTitle(tr("live.title", fps=self._fps))
@@ -259,8 +262,8 @@ class LiveViewWindow(QWidget):
 
     def _scaled_size(self) -> QSize:
         return QSize(
-            max(80, round(self.source_rect.width() * self._zoom)),
-            max(60, round(self.source_rect.height() * self._zoom)),
+            max(80, round(self._display_rect.width() * self._zoom)),
+            max(60, round(self._display_rect.height() * self._zoom)),
         )
 
     def _apply_click_through(self) -> None:

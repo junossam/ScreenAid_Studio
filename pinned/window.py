@@ -25,9 +25,11 @@ class PinnedWindow(QWidget):
         settings: PinnedWindowSettings,
         drawing_settings: DrawingSettings,
         eraser_settings: EraserSettings | None = None,
+        display_size: QSize | None = None,
     ) -> None:
         super().__init__()
         self._image = image
+        self._display_size = display_size or image.size()
         self._settings = settings
         self._drawing_settings = drawing_settings
         self._eraser_settings = eraser_settings or EraserSettings(mode="object", size=24)
@@ -396,8 +398,8 @@ class PinnedWindow(QWidget):
 
     def _scaled_size(self) -> QSize:
         return QSize(
-            max(80, round(self._image.width() * self._zoom)),
-            max(60, round(self._image.height() * self._zoom)),
+            max(80, round(self._display_size.width() * self._zoom)),
+            max(60, round(self._display_size.height() * self._zoom)),
         )
 
     @staticmethod

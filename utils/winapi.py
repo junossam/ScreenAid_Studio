@@ -10,6 +10,7 @@ gdi32 = ctypes.windll.gdi32
 HHOOK = ctypes.c_void_p
 HINSTANCE = ctypes.c_void_p
 HWND = wintypes.HWND
+HMONITOR = ctypes.c_void_p
 LONG_PTR = wintypes.LPARAM
 LRESULT = wintypes.LPARAM
 ULONG_PTR = ctypes.c_size_t
@@ -101,6 +102,13 @@ LowLevelMouseProc = ctypes.WINFUNCTYPE(
 LowLevelKeyboardProc = ctypes.WINFUNCTYPE(
     LRESULT, ctypes.c_int, wintypes.WPARAM, wintypes.LPARAM
 )
+MonitorEnumProc = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    HMONITOR,
+    wintypes.HDC,
+    ctypes.POINTER(RECT),
+    wintypes.LPARAM,
+)
 
 user32.SetWindowsHookExW.argtypes = [
     ctypes.c_int,
@@ -122,6 +130,13 @@ user32.MonitorFromPoint.argtypes = [POINT, wintypes.DWORD]
 user32.MonitorFromPoint.restype = ctypes.c_void_p
 user32.GetMonitorInfoW.argtypes = [ctypes.c_void_p, ctypes.POINTER(MONITORINFOEXW)]
 user32.GetMonitorInfoW.restype = wintypes.BOOL
+user32.EnumDisplayMonitors.argtypes = [
+    wintypes.HDC,
+    ctypes.POINTER(RECT),
+    MonitorEnumProc,
+    wintypes.LPARAM,
+]
+user32.EnumDisplayMonitors.restype = wintypes.BOOL
 user32.GetDoubleClickTime.argtypes = []
 user32.GetDoubleClickTime.restype = wintypes.UINT
 user32.GetSystemMetrics.argtypes = [ctypes.c_int]
@@ -201,6 +216,24 @@ def monitor_info_from_point(x: int, y: int) -> MONITORINFOEXW | None:
     if not user32.GetMonitorInfoW(monitor, ctypes.byref(info)):
         return None
     return info
+
+
+def display_monitor_infos() -> list[MONITORINFOEXW]:
+    infos: list[MONITORINFOEXW] = []
+
+    def _callback(monitor, _dc, _rect, _data) -> bool:
+        info = MONITORINFOEXW()
+        info.cbSize = ctypes.sizeof(MONITORINFOEXW)
+        if user32.GetMonitorInfoW(monitor, ctypes.byref(info)):
+            infos.append(info)
+        return True
+
+    callback = MonitorEnumProc(_callback)
+    if not user32.EnumDisplayMonitors(None, None, callback, 0):
+        raise OSError("EnumDisplayMonitors failed")
+    if not infos:
+        raise OSError("EnumDisplayMonitors returned no monitors")
+    return infos
 
 
 def cursor_pos() -> POINT:

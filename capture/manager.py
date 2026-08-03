@@ -13,6 +13,7 @@ from config.settings import Settings
 from core.event_bus import Event, EventBus, Subscription
 from core.service import Service
 from monitor.manager import virtual_screen_qrect
+from overlay.coordinates import ScreenCoordinateMapper
 from utils.winapi import cursor_pos, foreground_window_rect, monitor_info_from_point
 
 
@@ -51,6 +52,7 @@ class CaptureManager(Service):
         self.bus = bus
         self.clipboard = ClipboardService()
         self.saver = ImageSaveService(settings.capture, base_dir)
+        self._coordinates = ScreenCoordinateMapper()
         self._thread_pool = QThreadPool()
         self._thread_pool.setMaxThreadCount(1)
         self._capture_running = False
@@ -128,11 +130,11 @@ class CaptureManager(Service):
         try:
             return cursor_pos()
         except OSError:
-            qt_point = QCursor.pos()
+            physical_point = self._coordinates.qt_to_physical_point(QCursor.pos())
 
             class CursorPoint:
-                x = qt_point.x()
-                y = qt_point.y()
+                x = physical_point.x()
+                y = physical_point.y()
 
             return CursorPoint()
 
@@ -145,6 +147,8 @@ class CaptureManager(Service):
             qrect = QRect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)
             self._capture_rect(CaptureType.ACTIVE_WINDOW, qrect, source_window_handle=hwnd)
         except Exception as exc:
+            self._capture_running = False
+            self._current_worker = None
             self.bus.publish("capture.failed", error=str(exc))
 
     def _capture_rect(

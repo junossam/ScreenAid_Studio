@@ -105,6 +105,36 @@ class WindowControlsTest(unittest.TestCase):
         self.assertIn("input_geometry_changed", floating)
         self.assertIn("mouse.input_exclusion.changed", toolbar)
         self.assertIn("mouse.blocking.suspended", toolbar)
+        self.assertIn("ScreenCoordinateMapper", toolbar)
+        self.assertIn("qt_to_physical_rect(self._window.frameGeometry())", toolbar)
+        self.assertNotIn("devicePixelRatio() if screen is not None", toolbar)
+
+    def test_capture_fallback_paths_convert_between_qt_and_physical_coordinates(self) -> None:
+        capture_manager = self._source("capture/manager.py")
+        gdi = self._source("capture/gdi.py")
+        region_selection = self._source("capture/region_selection.py")
+
+        self.assertIn("qt_to_physical_point(QCursor.pos())", capture_manager)
+        self.assertNotIn("QGuiApplication", gdi)
+        self.assertNotIn("grabWindow", gdi)
+        self.assertIn('raise OSError("BitBlt failed")', gdi)
+        self.assertIn("physical_rect = self._coordinates.qt_to_physical_rect", region_selection)
+        self.assertIn("physical_rect.width()", region_selection)
+
+    def test_capture_windows_open_at_visual_selection_size(self) -> None:
+        pinned_manager = self._source("pinned/manager.py")
+        pinned_window = self._source("pinned/window.py")
+        live_window = self._source("live_view/window.py")
+
+        self.assertIn("_display_size_for_rect", pinned_manager)
+        self.assertIn("physical_to_qt_rect(rect).size()", pinned_manager)
+        self.assertIn('event.payload.get("display_size")', pinned_manager)
+        self.assertIn("display_size if isinstance(display_size, QSize) else None", pinned_manager)
+        self.assertIn("display_size: QSize | None = None", pinned_window)
+        self.assertIn("self._display_size = display_size or image.size()", pinned_window)
+        self.assertIn("self._display_rect = self._coordinates.physical_to_qt_rect(self.source_rect)", live_window)
+        self.assertIn("self._display_rect.width()", live_window)
+        self.assertIn("display_size=QSize(self.size())", live_window)
 
     def test_pinned_manager_accepts_images_from_other_features(self) -> None:
         methods = self._class_methods("pinned/manager.py", "PinnedWindowManager")

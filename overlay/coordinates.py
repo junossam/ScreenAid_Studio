@@ -4,7 +4,7 @@ from PySide6.QtCore import QPoint, QRect
 from PySide6.QtGui import QGuiApplication, QScreen
 
 from monitor.manager import virtual_screen_qrect
-from utils.winapi import monitor_info_from_point
+from utils.winapi import display_monitor_infos, monitor_info_from_point
 
 
 class ScreenCoordinateMapper:
@@ -30,6 +30,42 @@ class ScreenCoordinateMapper:
         qt_x = geometry.left() + round((x - physical.left) * geometry.width() / physical_width)
         qt_y = geometry.top() + round((y - physical.top) * geometry.height() / physical_height)
         return QPoint(qt_x, qt_y)
+
+    def physical_to_qt_rect(self, rect: QRect) -> QRect:
+        rect = rect.normalized()
+        return self._bounding_rect(
+            (
+                self.physical_to_qt_point(rect.left(), rect.top()),
+                self.physical_to_qt_point(rect.right(), rect.top()),
+                self.physical_to_qt_point(rect.left(), rect.bottom()),
+                self.physical_to_qt_point(rect.right(), rect.bottom()),
+            )
+        )
+
+    def qt_to_physical_point(self, point: QPoint) -> QPoint:
+        screen = self._screen_for_qt_point(point)
+        monitor = self._monitor_for_screen(screen) if screen is not None else None
+        if screen is None or monitor is None:
+            return QPoint(point)
+
+        geometry = screen.geometry()
+        physical = monitor.rcMonitor
+        physical_width = max(1, physical.right - physical.left)
+        physical_height = max(1, physical.bottom - physical.top)
+        physical_x = physical.left + round((point.x() - geometry.left()) * physical_width / max(1, geometry.width()))
+        physical_y = physical.top + round((point.y() - geometry.top()) * physical_height / max(1, geometry.height()))
+        return QPoint(physical_x, physical_y)
+
+    def qt_to_physical_rect(self, rect: QRect) -> QRect:
+        rect = rect.normalized()
+        return self._bounding_rect(
+            (
+                self.qt_to_physical_point(rect.topLeft()),
+                self.qt_to_physical_point(rect.topRight()),
+                self.qt_to_physical_point(rect.bottomLeft()),
+                self.qt_to_physical_point(rect.bottomRight()),
+            )
+        )
 
     def work_area_for_point(self, point: QPoint) -> QRect:
         screen = QGuiApplication.screenAt(point)
@@ -64,6 +100,57 @@ class ScreenCoordinateMapper:
                 best_screen = screen
         return best_screen
 
+    def _monitor_for_screen(self, screen: QScreen | None):
+        if screen is None:
+            return None
+
+        screen_name = self._normalize_screen_name(screen.name())
+        monitors = display_monitor_infos()
+        if screen_name:
+            for monitor in monitors:
+                if self._normalize_screen_name(str(getattr(monitor, "szDevice", "")).rstrip("\x00")) == screen_name:
+                    return monitor
+
+        geometry = screen.geometry()
+        best_monitor = None
+        best_score = None
+        for monitor in monitors:
+            physical = monitor.rcMonitor
+            monitor_width = max(1, physical.right - physical.left)
+            monitor_height = max(1, physical.bottom - physical.top)
+            scale_x = monitor_width / max(1, geometry.width())
+            scale_y = monitor_height / max(1, geometry.height())
+            score = abs(scale_x - scale_y) + abs(scale_x - screen.devicePixelRatio())
+            if best_score is None or score < best_score:
+                best_score = score
+                best_monitor = monitor
+        return best_monitor
+
+    def _screen_for_qt_point(self, point: QPoint) -> QScreen | None:
+        screen = QGuiApplication.screenAt(point)
+        if screen is not None:
+            return screen
+        screens = QGuiApplication.screens()
+        if not screens:
+            return None
+        for candidate in screens:
+            if candidate.geometry().contains(point):
+                return candidate
+        return min(
+            screens,
+            key=lambda candidate: (
+                candidate.geometry().center().x() - point.x()
+            )
+            ** 2
+            + (candidate.geometry().center().y() - point.y()) ** 2,
+        )
+
     @staticmethod
     def _normalize_screen_name(name: str) -> str:
         return name.replace("\\\\.\\", "").replace("\\", "").strip().lower()
+
+    @staticmethod
+    def _bounding_rect(points: tuple[QPoint, QPoint, QPoint, QPoint]) -> QRect:
+        xs = [point.x() for point in points]
+        ys = [point.y() for point in points]
+        return QRect(min(xs), min(ys), max(xs) - min(xs) + 1, max(ys) - min(ys) + 1)

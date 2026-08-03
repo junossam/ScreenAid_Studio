@@ -9,6 +9,7 @@ from core.event_bus import Event, EventBus, Subscription
 from core.localization import tr
 from core.service import Service
 from config.settings import Settings
+from overlay.coordinates import ScreenCoordinateMapper
 from ui.floating_tool_window import FloatingToolWindow, ToolDragHandle
 from ui.toolbar_metrics import toolbar_metrics, toolbar_style
 from ui.tool_icons import command_icon, line_style_icon, stamp_icon, swatch_icon, tool_icon, width_icon
@@ -49,6 +50,7 @@ class DrawingToolbar(Service):
         self._line_style = default_line_style
         self._toolbar_button_size = toolbar_button_size
         self._toolbar_position = QPoint(toolbar_x, toolbar_y)
+        self._coordinates = ScreenCoordinateMapper()
         self._paused = False
         self._window = FloatingToolWindow()
         self._buttons: dict[str, QToolButton] = {}
@@ -210,17 +212,15 @@ class DrawingToolbar(Service):
         if not self._window.isVisible():
             self.bus.publish("mouse.input_exclusion.changed", source="drawing_toolbar", rect=None)
             return
-        rect = self._window.frameGeometry()
-        screen = self._window.screen()
-        ratio = screen.devicePixelRatio() if screen is not None else self._window.devicePixelRatioF()
+        rect = self._coordinates.qt_to_physical_rect(self._window.frameGeometry())
         self.bus.publish(
             "mouse.input_exclusion.changed",
             source="drawing_toolbar",
             rect=(
-                round(rect.left() * ratio),
-                round(rect.top() * ratio),
-                round((rect.right() + 1) * ratio),
-                round((rect.bottom() + 1) * ratio),
+                rect.left(),
+                rect.top(),
+                rect.right() + 1,
+                rect.bottom() + 1,
             ),
         )
 

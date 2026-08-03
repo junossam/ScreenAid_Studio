@@ -4,7 +4,7 @@ import ctypes
 from datetime import datetime
 from ctypes import wintypes
 
-from PySide6.QtGui import QGuiApplication, QImage
+from PySide6.QtGui import QImage
 
 from capture.models import CaptureRequest, CaptureResult
 from utils.winapi import gdi32, user32
@@ -108,23 +108,8 @@ class GdiCaptureBackend:
                 SRCCOPY | CAPTUREBLT,
             )
             if not ok:
-                image = self._fallback_grab_window(rect)
-                return CaptureResult(
-                    capture_type=request.capture_type,
-                    image=image,
-                    virtual_rect=rect,
-                    width=width,
-                    height=height,
-                    dpi_x=96,
-                    dpi_y=96,
-                    captured_at=datetime.now(),
-                    includes_annotations=False,
-                    includes_cursor=request.include_cursor,
-                )
-            try:
-                image = self._bitmap_to_qimage(memory_dc, bitmap, width, height)
-            except Exception:
-                image = self._fallback_grab_window(rect)
+                raise OSError("BitBlt failed")
+            image = self._bitmap_to_qimage(memory_dc, bitmap, width, height)
             return CaptureResult(
                 capture_type=request.capture_type,
                 image=image,
@@ -170,16 +155,3 @@ class GdiCaptureBackend:
             raise OSError("GetDIBits failed")
         image_format = getattr(QImage.Format, "Format_BGRX8888", QImage.Format.Format_RGB32)
         return QImage(bytes(buffer), width, height, width * 4, image_format).copy()
-
-    def _fallback_grab_window(self, rect) -> QImage:
-        screen = QGuiApplication.screenAt(rect.center()) or QGuiApplication.primaryScreen()
-        if screen is None:
-            raise OSError("BitBlt failed and no Qt screen fallback is available")
-        geometry = screen.geometry()
-        local_x = rect.left() - geometry.left()
-        local_y = rect.top() - geometry.top()
-        pixmap = screen.grabWindow(0, local_x, local_y, rect.width(), rect.height())
-        image = pixmap.toImage()
-        if image.isNull():
-            raise OSError("BitBlt failed and Qt screen fallback returned a null image")
-        return image

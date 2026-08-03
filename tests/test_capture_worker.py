@@ -17,6 +17,8 @@ class CaptureWorkerTests(unittest.TestCase):
         self.assertIn("GdiCaptureBackend().capture_region(self.request)", source)
         self.assertIn("Qt.ConnectionType.QueuedConnection", source)
         self.assertIn("self._thread_pool.start(worker)", source)
+        self.assertIn("self._capture_running = False", source)
+        self.assertIn("self._current_worker = None", source)
         self.assertNotIn("self.backend.capture_region(request)", source)
 
 

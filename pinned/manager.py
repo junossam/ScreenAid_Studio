@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QRect
+from PySide6.QtCore import QRect, QSize
 
 from capture.gdi import GdiCaptureBackend
 from capture.models import CaptureRequest, CaptureType
@@ -8,6 +8,7 @@ from capture.region_selection import RegionSelectionOverlay
 from config.settings import Settings
 from core.event_bus import Event, EventBus, Subscription
 from core.service import Service
+from overlay.coordinates import ScreenCoordinateMapper
 from pinned.window import PinnedWindow
 
 
@@ -16,6 +17,7 @@ class PinnedWindowManager(Service):
         self.settings = settings
         self.bus = bus
         self.backend = GdiCaptureBackend()
+        self._coordinates = ScreenCoordinateMapper()
         self._windows: list[PinnedWindow] = []
         self._selection: RegionSelectionOverlay | None = None
         self._last_result = None
@@ -47,20 +49,21 @@ class PinnedWindowManager(Service):
     def _capture_completed(self, event: Event) -> None:
         self._last_result = event.payload["result"]
         if self.settings.capture.open_pinned_window:
-            self._open_image(self._last_result.image)
+            self._open_image(self._last_result.image, self._display_size_for_rect(self._last_result.virtual_rect))
 
     def _pin_last_capture(self, _event: Event) -> None:
         if self._last_result is None:
             self.bus.publish("pin.failed", error="No capture result is available")
             return
-        self._open_image(self._last_result.image)
+        self._open_image(self._last_result.image, self._display_size_for_rect(self._last_result.virtual_rect))
 
     def _pin_image(self, event: Event) -> None:
         image = event.payload.get("image")
         if image is None or image.isNull():
             self.bus.publish("pin.failed", error="No image is available")
             return
-        self._open_image(image)
+        display_size = event.payload.get("display_size")
+        self._open_image(image, display_size if isinstance(display_size, QSize) else None)
 
     def _select_region(self, _event: Event) -> None:
         if not self.settings.pinned_window.enabled:
@@ -84,15 +87,24 @@ class PinnedWindowManager(Service):
             self.bus.publish("pin.failed", error=str(exc))
             return
         self._last_result = result
-        self._open_image(result.image)
+        self._open_image(result.image, self._display_size_for_rect(result.virtual_rect))
 
-    def _open_image(self, image) -> None:
+    def _open_image(self, image, display_size: QSize | None = None) -> None:
         if not self.settings.pinned_window.enabled:
             return
-        window = PinnedWindow(image.copy(), self.settings.pinned_window, self.settings.drawing, self.settings.eraser)
+        window = PinnedWindow(
+            image.copy(),
+            self.settings.pinned_window,
+            self.settings.drawing,
+            self.settings.eraser,
+            display_size=display_size,
+        )
         window.destroyed.connect(lambda _obj=None, item=window: self._forget(item))
         self._windows.append(window)
         window.show()
+
+    def _display_size_for_rect(self, rect: QRect) -> QSize:
+        return self._coordinates.physical_to_qt_rect(rect).size()
 
     def _forget(self, window: PinnedWindow) -> None:
         if window in self._windows:
