@@ -117,6 +117,8 @@ class WindowControlsTest(unittest.TestCase):
         self.assertIn("qt_to_physical_point(QCursor.pos())", capture_manager)
         self.assertNotIn("QGuiApplication", gdi)
         self.assertNotIn("grabWindow", gdi)
+        self.assertNotIn("CAPTUREBLT", gdi)
+        self.assertIn("SRCCOPY,", gdi)
         self.assertIn('raise OSError("BitBlt failed")', gdi)
         self.assertIn("physical_rect = self._coordinates.qt_to_physical_rect", region_selection)
         self.assertIn("physical_rect.width()", region_selection)
@@ -135,6 +137,10 @@ class WindowControlsTest(unittest.TestCase):
         self.assertIn("self._display_rect = self._coordinates.physical_to_qt_rect(self.source_rect)", live_window)
         self.assertIn("self._display_rect.width()", live_window)
         self.assertIn("display_size=QSize(self.size())", live_window)
+        self.assertIn("painter.drawImage(target, self._image)", pinned_window)
+        self.assertIn("painter.drawImage(self._image_target_rect(), self._latest_image)", live_window)
+        self.assertNotIn("QPixmap.fromImage(self._image).scaled", pinned_window)
+        self.assertNotIn("QPixmap.fromImage(self._latest_image).scaled", live_window)
 
     def test_pinned_manager_accepts_images_from_other_features(self) -> None:
         methods = self._class_methods("pinned/manager.py", "PinnedWindowManager")

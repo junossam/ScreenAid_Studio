@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QPoint, QRect, QSize, QThread, QTimer, Qt, Signal
-from PySide6.QtGui import QAction, QColor, QFont, QImage, QKeySequence, QPainter, QPixmap, QShortcut
+from PySide6.QtGui import QAction, QColor, QFont, QImage, QKeySequence, QPainter, QShortcut
 from PySide6.QtWidgets import QMenu, QWidget
 
 from config.settings import LiveViewSettings
@@ -63,6 +63,7 @@ class LiveViewWindow(QWidget):
 
     def paintEvent(self, _event) -> None:
         painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
         painter.fillRect(self.rect(), Qt.GlobalColor.black)
         if self._latest_image.isNull():
             if self._last_error:
@@ -74,12 +75,7 @@ class LiveViewWindow(QWidget):
                     f"Live capture failed:\n{self._last_error}",
                 )
             return
-        pixmap = QPixmap.fromImage(self._latest_image).scaled(
-            self.size(),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
-        painter.drawPixmap((self.width() - pixmap.width()) // 2, (self.height() - pixmap.height()) // 2, pixmap)
+        painter.drawImage(self._image_target_rect(), self._latest_image)
 
     def mousePressEvent(self, event) -> None:
         self._activate_for_keyboard()
@@ -264,6 +260,15 @@ class LiveViewWindow(QWidget):
         return QSize(
             max(80, round(self._display_rect.width() * self._zoom)),
             max(60, round(self._display_rect.height() * self._zoom)),
+        )
+
+    def _image_target_rect(self) -> QRect:
+        size = self._latest_image.size().scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio)
+        return QRect(
+            (self.width() - size.width()) // 2,
+            (self.height() - size.height()) // 2,
+            size.width(),
+            size.height(),
         )
 
     def _apply_click_through(self) -> None:

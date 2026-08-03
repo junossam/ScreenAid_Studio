@@ -11,7 +11,6 @@ from utils.winapi import gdi32, user32
 
 
 SRCCOPY = 0x00CC0020
-CAPTUREBLT = 0x40000000
 DIB_RGB_COLORS = 0
 BI_RGB = 0
 
@@ -105,7 +104,7 @@ class GdiCaptureBackend:
                 screen_dc,
                 rect.left(),
                 rect.top(),
-                SRCCOPY | CAPTUREBLT,
+                SRCCOPY,
             )
             if not ok:
                 raise OSError("BitBlt failed")

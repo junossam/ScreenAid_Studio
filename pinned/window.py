@@ -4,7 +4,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from PySide6.QtCore import QPoint, QRect, QSize, Qt
-from PySide6.QtGui import QAction, QGuiApplication, QImage, QKeySequence, QPainter, QPixmap, QShortcut
+from PySide6.QtGui import QAction, QGuiApplication, QImage, QKeySequence, QPainter, QShortcut
 from PySide6.QtWidgets import QFileDialog, QMenu, QMessageBox, QWidget
 
 from config.settings import DrawingSettings, EraserSettings, PinnedWindowSettings
@@ -79,16 +79,11 @@ class PinnedWindow(QWidget):
 
     def paintEvent(self, _event) -> None:
         painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
         painter.fillRect(self.rect(), Qt.GlobalColor.black)
-        pixmap = QPixmap.fromImage(self._image).scaled(
-            self.size(),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
-        x = (self.width() - pixmap.width()) // 2
-        y = (self.height() - pixmap.height()) // 2
-        painter.drawPixmap(x, y, pixmap)
-        self._paint_annotations(painter, QRect(x, y, pixmap.width(), pixmap.height()))
+        target = self._image_target_rect()
+        painter.drawImage(target, self._image)
+        self._paint_annotations(painter, target)
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
