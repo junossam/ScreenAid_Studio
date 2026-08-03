@@ -171,23 +171,43 @@ class CaptureManager(Service):
                 include_annotations=self.settings.capture.include_annotations,
                 include_cursor=self.settings.capture.include_cursor,
             )
+            self._capture_running = True
+            self.bus.publish("overlay.capture_visuals.suspended", source="capture_manager", suspended=True)
+            QTimer.singleShot(50, lambda: self._start_capture_worker(request, source_monitor_id, source_window_handle))
+        except Exception as exc:
+            self._capture_running = False
+            self._current_worker = None
+            self.bus.publish("overlay.capture_visuals.suspended", source="capture_manager", suspended=False)
+            self.bus.publish("capture.failed", error=str(exc))
+
+    def _start_capture_worker(
+        self,
+        request: CaptureRequest,
+        source_monitor_id: str | None = None,
+        source_window_handle: int | None = None,
+    ) -> None:
+        try:
             worker = _CaptureWorker(request, source_monitor_id, source_window_handle)
             worker.signals.completed.connect(self._capture_completed, Qt.ConnectionType.QueuedConnection)
             worker.signals.failed.connect(self._capture_failed, Qt.ConnectionType.QueuedConnection)
-            self._capture_running = True
             self._current_worker = worker
             self._thread_pool.start(worker)
         except Exception as exc:
+            self._capture_running = False
+            self._current_worker = None
+            self.bus.publish("overlay.capture_visuals.suspended", source="capture_manager", suspended=False)
             self.bus.publish("capture.failed", error=str(exc))
 
     def _capture_completed(self, result: CaptureResult) -> None:
         self._capture_running = False
         self._current_worker = None
+        self.bus.publish("overlay.capture_visuals.suspended", source="capture_manager", suspended=False)
         self._after_capture(result)
 
     def _capture_failed(self, error: str) -> None:
         self._capture_running = False
         self._current_worker = None
+        self.bus.publish("overlay.capture_visuals.suspended", source="capture_manager", suspended=False)
         self.bus.publish("capture.failed", error=error)
 
     def _after_capture(self, result: CaptureResult) -> None:

@@ -38,6 +38,7 @@ class OverlayWindow(QWidget):
         self._pass_through = settings.drawing.pass_through_on_start or not settings.drawing.enabled
         self._paused = False
         self._click_effects_visible = True
+        self._capture_visual_suppressions: set[str] = set()
         self._origin = QPoint(0, 0)
         self._animation_timer = QTimer(self)
         self._animation_timer.setInterval(33)
@@ -59,7 +60,7 @@ class OverlayWindow(QWidget):
                 self._renderer.paint_shape(painter, shape)
         if self._preview:
             self._renderer.paint_shape(painter, self._preview)
-        if self._click_effect:
+        if self._click_effect and not self._capture_visual_suppressions:
             self._paint_click_effect(painter, self._click_effect)
 
     def closeEvent(self, event) -> None:
@@ -91,6 +92,7 @@ class OverlayWindow(QWidget):
         self.bus.subscribe("drawing.style.change", self._drawing_style_changed)
         self.bus.subscribe("app.pause.changed", self._set_paused)
         self.bus.subscribe("click_effects.toggle_temp", self._toggle_click_effects)
+        self.bus.subscribe("overlay.capture_visuals.suspended", self._set_capture_visuals_suspended)
         self.bus.subscribe("settings.saved", self._settings_saved)
         self.bus.subscribe("overlay.clear", self._clear)
 
@@ -100,6 +102,8 @@ class OverlayWindow(QWidget):
         mouse_event: MouseEvent = event.payload["event"]
         if not self._pass_through:
             self._handle_drawing_mouse_event(mouse_event)
+            return
+        if self._capture_visual_suppressions:
             return
         if not self._click_effects_enabled():
             return
@@ -170,6 +174,19 @@ class OverlayWindow(QWidget):
         self._button_tracker.reset()
         self._held_click_buttons.clear()
         self._animation_timer.stop()
+        self.update()
+
+    def _set_capture_visuals_suspended(self, event: Event) -> None:
+        source = str(event.payload.get("source", "capture"))
+        suspended = bool(event.payload.get("suspended", False))
+        if suspended:
+            self._capture_visual_suppressions.add(source)
+            self._click_effect = None
+            self._button_tracker.reset()
+            self._held_click_buttons.clear()
+            self._animation_timer.stop()
+        else:
+            self._capture_visual_suppressions.discard(source)
         self.update()
 
     def _to_local_rect(self, rect: QRect) -> QRect:

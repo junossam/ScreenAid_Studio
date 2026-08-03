@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QRect, QSize
+from PySide6.QtCore import QRect, QSize, QTimer
 
 from capture.gdi import GdiCaptureBackend
 from capture.models import CaptureRequest, CaptureType
@@ -80,12 +80,18 @@ class PinnedWindowManager(Service):
             self._selection = None
         if rect is None or rect.normalized().isNull():
             return
+        self.bus.publish("overlay.capture_visuals.suspended", source="pinned_capture", suspended=True)
+        QTimer.singleShot(50, lambda: self._capture_selected_region(rect.normalized()))
+
+    def _capture_selected_region(self, rect: QRect) -> None:
         try:
-            request = CaptureRequest(CaptureType.REGION, rect.normalized(), include_annotations=False)
+            request = CaptureRequest(CaptureType.REGION, rect, include_annotations=False)
             result = self.backend.capture_region(request)
         except Exception as exc:
             self.bus.publish("pin.failed", error=str(exc))
             return
+        finally:
+            self.bus.publish("overlay.capture_visuals.suspended", source="pinned_capture", suspended=False)
         self._last_result = result
         self._open_image(result.image, self._display_size_for_rect(result.virtual_rect))
 

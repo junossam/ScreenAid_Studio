@@ -88,6 +88,8 @@ class WindowControlsTest(unittest.TestCase):
         self.assertIn("QColor(color)", overlay)
         self.assertIn("_paint_input_capture_surface", overlay)
         self.assertIn("QColor(0, 0, 0, 1)", overlay)
+        self.assertIn("overlay.capture_visuals.suspended", overlay)
+        self.assertIn("_capture_visual_suppressions", overlay)
         self.assertIn('"overlay.input_mode.changed"', overlay)
         self.assertIn('"overlay.input_mode.changed"', hook)
         self.assertIn("_should_block", hook)
@@ -122,6 +124,8 @@ class WindowControlsTest(unittest.TestCase):
         self.assertIn('raise OSError("BitBlt failed")', gdi)
         self.assertIn("physical_rect = self._coordinates.qt_to_physical_rect", region_selection)
         self.assertIn("physical_rect.width()", region_selection)
+        self.assertIn("QTimer.singleShot(50", capture_manager)
+        self.assertIn('"overlay.capture_visuals.suspended"', capture_manager)
 
     def test_capture_windows_open_at_visual_selection_size(self) -> None:
         pinned_manager = self._source("pinned/manager.py")
@@ -141,6 +145,18 @@ class WindowControlsTest(unittest.TestCase):
         self.assertIn("painter.drawImage(self._image_target_rect(), self._latest_image)", live_window)
         self.assertNotIn("QPixmap.fromImage(self._image).scaled", pinned_window)
         self.assertNotIn("QPixmap.fromImage(self._latest_image).scaled", live_window)
+
+    def test_pinned_and_live_captures_suppress_click_visuals(self) -> None:
+        pinned_manager = self._source("pinned/manager.py")
+        live_manager = self._source("live_view/manager.py")
+
+        self.assertIn('"overlay.capture_visuals.suspended"', pinned_manager)
+        self.assertIn('source="pinned_capture"', pinned_manager)
+        self.assertIn("QTimer.singleShot(50", pinned_manager)
+        self.assertIn("_capture_selected_region", pinned_manager)
+        self.assertIn('"overlay.capture_visuals.suspended"', live_manager)
+        self.assertIn('source="live_view"', live_manager)
+        self.assertIn("_start_window", live_manager)
 
     def test_pinned_manager_accepts_images_from_other_features(self) -> None:
         methods = self._class_methods("pinned/manager.py", "PinnedWindowManager")

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QRect
+from PySide6.QtCore import QRect, QTimer
 
 from capture.region_selection import RegionSelectionOverlay
 from config.settings import Settings
@@ -51,23 +51,32 @@ class LiveViewManager(Service):
             self._selection = None
         if rect is None or rect.normalized().isNull():
             return
+        self.bus.publish("overlay.capture_visuals.suspended", source="live_view", suspended=True)
         window = LiveViewWindow(rect.normalized(), self.settings.live_view, self.bus)
         window.destroyed.connect(lambda _obj=None, item=window: self._forget(item))
         self._windows.append(window)
         window.show()
-        window.start()
         if self._globally_paused:
             window.set_paused(True)
+        else:
+            QTimer.singleShot(50, lambda: self._start_window(window))
 
     def _stop_all(self, _event: Event) -> None:
         for window in tuple(self._windows):
             window.stop()
             window.close()
         self._windows.clear()
+        self.bus.publish("overlay.capture_visuals.suspended", source="live_view", suspended=False)
 
     def _forget(self, window: LiveViewWindow) -> None:
         if window in self._windows:
             self._windows.remove(window)
+        if not self._windows:
+            self.bus.publish("overlay.capture_visuals.suspended", source="live_view", suspended=False)
+
+    def _start_window(self, window: LiveViewWindow) -> None:
+        if window in self._windows and not self._globally_paused:
+            window.start()
 
     def _pause_all(self, event: Event) -> None:
         self._globally_paused = bool(event.payload.get("paused", False))
