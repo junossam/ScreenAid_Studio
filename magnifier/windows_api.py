@@ -7,12 +7,12 @@ from PySide6.QtCore import QObject, QTimer, Signal
 from PySide6.QtGui import QCursor, QGuiApplication
 
 from config.settings import MagnifierSettings
+from monitor.manager import virtual_screen_rect
 from overlay.coordinates import ScreenCoordinateMapper
 from utils.winapi import (
     RECT,
     VK_ESCAPE,
     cursor_pos,
-    monitor_info_from_point,
     user32,
 )
 
@@ -137,7 +137,8 @@ class WindowsLiveMagnifier(QObject):
         self.poll_escape()
         try:
             source, destination = self._rects_for_cursor()
-            self._api.set_transform(self._scale(), source.left, source.top)
+            x_offset, y_offset = self._fullscreen_offsets(source, destination)
+            self._api.set_transform(self._scale(), x_offset, y_offset)
             if not self._api.set_input_transform(True, source, destination) and not self._input_transform_failed:
                 self._input_transform_failed = True
                 self.failed.emit("MagSetInputTransform failed. UIAccess privileges are required for mapped input.")
@@ -146,22 +147,8 @@ class WindowsLiveMagnifier(QObject):
 
     def _rects_for_cursor(self) -> tuple[RECT, RECT]:
         physical_cursor = self._cursor_physical_point()
-        monitor = monitor_info_from_point(physical_cursor.x(), physical_cursor.y())
-        if monitor is None:
-            screen = QGuiApplication.screenAt(QCursor.pos()) or QGuiApplication.primaryScreen()
-            if screen is None:
-                raise WindowsMagnificationError("No screen available")
-            destination_qt = screen.geometry()
-            top_left = self._coordinates.qt_to_physical_point(destination_qt.topLeft())
-            bottom_right = self._coordinates.qt_to_physical_point(destination_qt.bottomRight())
-            destination = RECT(top_left.x(), top_left.y(), bottom_right.x() + 1, bottom_right.y() + 1)
-        else:
-            destination = RECT(
-                monitor.rcMonitor.left,
-                monitor.rcMonitor.top,
-                monitor.rcMonitor.right,
-                monitor.rcMonitor.bottom,
-            )
+        virtual = virtual_screen_rect()
+        destination = RECT(virtual.left, virtual.top, virtual.right, virtual.bottom)
 
         scale = self._scale()
         source_width = max(1, round((destination.right - destination.left) / scale))
@@ -178,6 +165,13 @@ class WindowsLiveMagnifier(QObject):
         )
         source = RECT(left, top, left + source_width, top + source_height)
         return source, destination
+
+    def _fullscreen_offsets(self, source: RECT, destination: RECT) -> tuple[int, int]:
+        scale = self._scale()
+        return (
+            int(round(source.left - (destination.left / scale))),
+            int(round(source.top - (destination.top / scale))),
+        )
 
     def _cursor_physical_point(self):
         try:
