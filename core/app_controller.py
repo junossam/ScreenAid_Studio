@@ -80,6 +80,7 @@ class AppController:
         self.dispatcher.register(CommandId.OPEN_COMMAND_MODE, lambda: self.bus.publish("command_mode.open"))
         self.dispatcher.register(CommandId.CAPTURE_REGION, lambda: self._publish_when_active("capture.region"))
         self.dispatcher.register(CommandId.CAPTURE_LAST_REGION, lambda: self._publish_when_active("capture.last_region"))
+        self.dispatcher.register(CommandId.SAVE_LAST_CAPTURE, lambda: self._publish_when_active("capture.save_last"))
         self.dispatcher.register(
             CommandId.CAPTURE_CURRENT_MONITOR,
             lambda: self._publish_when_active("capture.current_monitor"),
@@ -97,6 +98,7 @@ class AppController:
         self.dispatcher.register(CommandId.LIVE_REGION, lambda: self._publish_when_active("live.region"))
         self.dispatcher.register(CommandId.LIVE_STOP_ALL, lambda: self.bus.publish("live.stop_all"))
         self.dispatcher.register(CommandId.FULLSCREEN_MAGNIFIER, lambda: self._publish_when_active("magnifier.fullscreen.toggle"))
+        self.dispatcher.register(CommandId.LIVE_MAGNIFIER, lambda: self._publish_when_active("magnifier.live.toggle"))
 
     def _toggle_overlay(self) -> None:
         if self.container.overlay.isVisible():
@@ -111,15 +113,18 @@ class AppController:
             self._drawing_pass_through()
             self.bus.publish("app.command.blocked", reason="Application is paused")
             return
+        if self.container.magnifier.is_visible():
+            self.bus.publish("magnifier.drawing.toggle")
+            return
         self.bus.publish("drawing.mode.toggle")
         pass_through = not self.state_store.state.drawing_pass_through
         self.state_store.set_drawing_pass_through(pass_through)
-        self.bus.publish("drawing.mode.changed", pass_through=pass_through)
+        self.bus.publish("drawing.mode.changed", pass_through=pass_through, scope="overlay")
 
     def _drawing_pass_through(self) -> None:
         self.bus.publish("drawing.mode.pass_through")
         self.state_store.set_drawing_pass_through(True)
-        self.bus.publish("drawing.mode.changed", pass_through=True)
+        self.bus.publish("drawing.mode.changed", pass_through=True, scope="overlay")
 
     def _clear_drawing(self) -> None:
         self.bus.publish("drawing.clear")

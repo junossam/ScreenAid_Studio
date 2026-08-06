@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QPoint, Qt
+from PySide6.QtCore import QPoint, Qt, QTimer
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QButtonGroup, QHBoxLayout, QMenu, QToolButton, QWidget
 
 from application.command_dispatcher import CommandDispatcher
@@ -48,11 +49,15 @@ class DrawingToolbar(Service):
         self._color = default_color
         self._width = default_width
         self._line_style = default_line_style
+        self._visible_scope = "overlay"
         self._toolbar_button_size = toolbar_button_size
         self._toolbar_position = QPoint(toolbar_x, toolbar_y)
         self._coordinates = ScreenCoordinateMapper()
         self._paused = False
         self._window = FloatingToolWindow()
+        self._escape_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Escape), self._window)
+        self._escape_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self._escape_shortcut.activated.connect(self._escape_pressed)
         self._buttons: dict[str, QToolButton] = {}
         self._color_button = QToolButton(self._window)
         self._width_button = QToolButton(self._window)
@@ -68,6 +73,7 @@ class DrawingToolbar(Service):
             return
         self._subscriptions = [
             self.bus.subscribe("drawing.mode.changed", self._drawing_mode_changed),
+            self.bus.subscribe("drawing.toolbar.raise", self._toolbar_raise_requested),
             self.bus.subscribe("drawing.tool.changed", self._tool_changed),
             self.bus.subscribe("app.pause.changed", self._pause_changed),
             self.bus.subscribe("settings.saved", self._settings_saved),
@@ -154,9 +160,27 @@ class DrawingToolbar(Service):
         if pass_through or self._paused:
             self._window.hide()
         else:
+            self._visible_scope = str(event.payload.get("scope", "overlay"))
             self._window.show()
             self._window.raise_()
+            if event.payload.get("scope") == "magnifier":
+                QTimer.singleShot(0, self._raise_window)
             self._publish_input_exclusion()
+
+    def _raise_window(self) -> None:
+        if self._window.isVisible():
+            self._window.raise_()
+            self._window.activateWindow()
+            self._publish_input_exclusion()
+
+    def _toolbar_raise_requested(self, _event: Event) -> None:
+        self._raise_window()
+
+    def _escape_pressed(self) -> None:
+        if self._visible_scope == "magnifier":
+            self.bus.publish("magnifier.close")
+        else:
+            self.dispatcher.dispatch(CommandId.DRAWING_PASS_THROUGH)
 
     def _tool_changed(self, event: Event) -> None:
         tool = event.payload.get("tool")

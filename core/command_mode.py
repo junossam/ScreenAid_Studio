@@ -35,6 +35,7 @@ COMMAND_MODE_COMMANDS = {
     "redo_drawing": CommandId.REDO_DRAWING,
     "capture_region": CommandId.CAPTURE_REGION,
     "capture_last_region": CommandId.CAPTURE_LAST_REGION,
+    "save_last_capture": CommandId.SAVE_LAST_CAPTURE,
     "capture_monitor": CommandId.CAPTURE_CURRENT_MONITOR,
     "capture_virtual": CommandId.CAPTURE_VIRTUAL_SCREEN,
     "capture_window": CommandId.CAPTURE_ACTIVE_WINDOW,
@@ -43,6 +44,7 @@ COMMAND_MODE_COMMANDS = {
     "live_region": CommandId.LIVE_REGION,
     "live_stop_all": CommandId.LIVE_STOP_ALL,
     "fullscreen_magnifier": CommandId.FULLSCREEN_MAGNIFIER,
+    "live_magnifier": CommandId.LIVE_MAGNIFIER,
     "open_settings": CommandId.OPEN_SETTINGS,
     "toggle_pause": CommandId.TOGGLE_PAUSE,
 }
@@ -52,9 +54,19 @@ COMMAND_MODE_GROUPS = (
     ("command_mode.group.drawing", ("toggle_drawing", "pass_through", "clear_drawing", "undo_drawing", "redo_drawing")),
     (
         "command_mode.group.capture",
-        ("capture_region", "capture_last_region", "capture_monitor", "capture_virtual", "capture_window"),
+        (
+            "capture_region",
+            "capture_last_region",
+            "save_last_capture",
+            "capture_monitor",
+            "capture_virtual",
+            "capture_window",
+        ),
     ),
-    ("command_mode.group.windows", ("pin_region", "pin_last_capture", "live_region", "live_stop_all", "fullscreen_magnifier")),
+    (
+        "command_mode.group.windows",
+        ("pin_region", "pin_last_capture", "live_region", "live_stop_all", "fullscreen_magnifier", "live_magnifier"),
+    ),
     ("command_mode.group.settings", ("open_settings",)),
 )
 
@@ -88,6 +100,18 @@ class _CommandModeHint(QWidget):
             self.move(rect.center().x() - self.width() // 2, rect.bottom() - self.height() - 48)
         self.show()
 
+    def warm_up(self, text: str) -> None:
+        self.label.setText(text)
+        self.adjustSize()
+        self.ensurePolished()
+        self.label.ensurePolished()
+        self.winId()
+        self.move(-10000, -10000)
+        self.setWindowOpacity(0.0)
+        self.show()
+        self.hide()
+        self.setWindowOpacity(1.0)
+
 
 class CommandModeService(Service):
     def __init__(self, settings: CommandModeSettings, dispatcher: CommandDispatcher, bus: EventBus) -> None:
@@ -104,6 +128,8 @@ class CommandModeService(Service):
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(self._deactivate)
         self._hint = _CommandModeHint()
+        self._hint_text_cache = ""
+        self._warmed_up = False
 
     def start(self) -> None:
         if self._subscriptions:
@@ -113,6 +139,8 @@ class CommandModeService(Service):
             self.bus.subscribe("settings.saved", self._settings_saved),
         ]
         self._install_hook()
+        QTimer.singleShot(0, self._warm_up)
+        QTimer.singleShot(1000, self._warm_up)
 
     def stop(self) -> None:
         for subscription in self._subscriptions:
@@ -134,7 +162,7 @@ class CommandModeService(Service):
             return
         self._active = True
         if self.settings.show_hint:
-            self._hint.show_keys(self._hint_text())
+            self._hint.show_keys(self._cached_hint_text())
         self._timer.start(self.settings.timeout_ms)
 
     def _deactivate(self) -> None:
@@ -181,7 +209,21 @@ class CommandModeService(Service):
         settings = event.payload.get("settings")
         if isinstance(settings, Settings):
             self.settings = settings.command_mode
+            self._hint_text_cache = ""
+            self._warmed_up = False
+            QTimer.singleShot(0, self._warm_up)
             self._deactivate()
+
+    def _warm_up(self) -> None:
+        if self._warmed_up or not self.settings.enabled:
+            return
+        self._hint.warm_up(self._cached_hint_text())
+        self._warmed_up = True
+
+    def _cached_hint_text(self) -> str:
+        if not self._hint_text_cache:
+            self._hint_text_cache = self._hint_text()
+        return self._hint_text_cache
 
     def _hint_text(self) -> str:
         lines = [tr("command_mode.title")]

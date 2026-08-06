@@ -59,6 +59,7 @@ class CaptureManager(Service):
         self._current_worker: _CaptureWorker | None = None
         self._selection: RegionSelectionOverlay | None = None
         self._last_region: QRect | None = None
+        self._last_result: CaptureResult | None = None
         self._subscriptions: list[Subscription] = []
 
     def start(self) -> None:
@@ -67,6 +68,7 @@ class CaptureManager(Service):
         self._subscriptions = [
             self.bus.subscribe("capture.region", self._start_region_capture),
             self.bus.subscribe("capture.last_region", self._capture_last_region),
+            self.bus.subscribe("capture.save_last", self._save_last_capture),
             self.bus.subscribe("capture.current_monitor", self._capture_current_monitor),
             self.bus.subscribe("capture.virtual_screen", self._capture_virtual_screen),
             self.bus.subscribe("capture.active_window", self._capture_active_window),
@@ -99,6 +101,21 @@ class CaptureManager(Service):
             self.bus.publish("capture.failed", error="Previous capture region is outside the current virtual screen")
             return
         self._capture_rect(CaptureType.REGION, self._last_region)
+
+    def _save_last_capture(self, _event: Event) -> None:
+        if self._last_result is None or self._last_result.image.isNull():
+            self.bus.publish("capture.failed", error="No captured image to save")
+            return
+        try:
+            saved_path = self.saver.save(self._last_result)
+            self.bus.publish(
+                "capture.completed",
+                result=self._last_result,
+                copied=False,
+                saved_path=saved_path,
+            )
+        except Exception as exc:
+            self.bus.publish("capture.failed", error=str(exc))
 
     def _region_selected(self, rect: QRect | None) -> None:
         if self._selection:
@@ -211,6 +228,7 @@ class CaptureManager(Service):
         self.bus.publish("capture.failed", error=error)
 
     def _after_capture(self, result: CaptureResult) -> None:
+        self._last_result = result
         saved_path = None
         copied = False
         if self.settings.capture.copy_to_clipboard:

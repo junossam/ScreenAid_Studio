@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from configparser import ConfigParser
 from dataclasses import dataclass
+from io import StringIO
 from pathlib import Path
 
 
@@ -74,8 +75,19 @@ class LocalizationManager:
     def _read_parser(path: Path) -> ConfigParser:
         parser = ConfigParser()
         parser.optionxform = str
-        parser.read(path, encoding="utf-8")
+        text = LocalizationManager._read_locale_text(path)
+        parser.read_file(StringIO(text), source=str(path))
         return parser
+
+    @staticmethod
+    def _read_locale_text(path: Path) -> str:
+        data = path.read_bytes()
+        for encoding in ("utf-8-sig", "utf-16", "utf-16-le", "utf-16-be", "cp949"):
+            try:
+                return data.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+        return data.decode("utf-8", errors="replace")
 
 
 _manager = LocalizationManager()

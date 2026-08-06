@@ -1,54 +1,43 @@
 # Roadmap
 
-## Stage 0: Prototypes
+이 문서는 개발 상태를 빠르게 파악하기 위한 내부 로드맵입니다. 사용자 명세서 역할은 하지 않습니다.
 
-- Transparent overlay
-- Click-through styles
-- Low-level mouse hook
-- RegisterHotKey
-- GDI BitBlt
-- DPI and monitor coordinate checks
+## Completed Core
 
-## Stage 1: Base App
+- Tray app and single-instance guard
+- Per Monitor DPI awareness
+- Settings manager and portable mode
+- Localization: Korean and English
+- Command mode and configurable hotkeys
+- Global mouse hook
+- Click indicators with drag-follow and fade-out
+- Transparent overlay and drawing mode
+- Drawing tools: pen, highlighter, line, rectangle, ellipse, arrow, stamp, eraser
+- Region, monitor, virtual screen, and active window capture
+- Last capture save command
+- Pinned capture windows
+- Worker-based live region view with queue size 1
+- Current-screen fullscreen magnifier with drawing support
+- Windows Magnification API based live fullscreen magnifier
+- Notification settings
+- Developer diagnostics via `developer.log`
+- PyInstaller folder distribution support
+- User manual included in `docs`
 
-- Tray app
-- DPI setup
-- settings manager
-- command dispatcher
-- state store
+## Stabilization Focus
 
-## Stage 2: Input And Click Display
+- Manual verification on Windows 10 and Windows 11
+- Multi-monitor and mixed-DPI regression checks
+- Portable EXE verification on machines without Python
+- Windows Magnification API input behavior across UIAccess environments
+- Long-run idle CPU and memory checks
+- Capture quality and excluded overlay regression checks
 
-- Mouse hook event model
-- click effects
-- wheel and double-click gestures
+## Later Ideas
 
-## Stage 3: Drawing
-
-- freehand
-- shapes
-- eraser
-- undo/redo
-- toolbar
-
-## Stage 4: Capture And Pinned Windows
-
-- region capture
-- current monitor capture
-- clipboard and file saving
-- static pinned windows
-
-## Stage 5: Live View
-
-- worker-based capture
-- queue size 1
-- FPS limits
-- pause/resume
-
-## Stage 6: Stabilization
-
-- settings UI
-- in-memory diagnostics
-- safe mode
-- global pause/resume
-- packaging
+- Screen recording
+- OCR
+- Presentation timer
+- Laser pointer mode
+- Webcam overlay
+- AI-assisted annotation tools

@@ -27,6 +27,8 @@ SWP_NOMOVE = 0x0002
 SWP_NOZORDER = 0x0004
 SWP_NOACTIVATE = 0x0010
 SWP_FRAMECHANGED = 0x0020
+WDA_NONE = 0x00000000
+WDA_EXCLUDEFROMCAPTURE = 0x00000011
 
 WH_KEYBOARD_LL = 13
 WH_MOUSE_LL = 14
@@ -167,6 +169,13 @@ user32.SetWindowPos.argtypes = [
     wintypes.UINT,
 ]
 user32.SetWindowPos.restype = wintypes.BOOL
+user32.SetCursorPos.argtypes = [ctypes.c_int, ctypes.c_int]
+user32.SetCursorPos.restype = wintypes.BOOL
+user32.mouse_event.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.DWORD, wintypes.DWORD, ULONG_PTR]
+user32.mouse_event.restype = None
+if hasattr(user32, "SetWindowDisplayAffinity"):
+    user32.SetWindowDisplayAffinity.argtypes = [HWND, wintypes.DWORD]
+    user32.SetWindowDisplayAffinity.restype = wintypes.BOOL
 
 if hasattr(user32, "GetWindowLongPtrW"):
     user32.GetWindowLongPtrW.argtypes = [HWND, ctypes.c_int]
@@ -200,6 +209,13 @@ def set_click_through(hwnd: int, enabled: bool) -> None:
         0,
         SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
     )
+
+
+def set_exclude_from_capture(hwnd: int, enabled: bool) -> None:
+    if not hwnd or not hasattr(user32, "SetWindowDisplayAffinity"):
+        return
+    affinity = WDA_EXCLUDEFROMCAPTURE if enabled else WDA_NONE
+    user32.SetWindowDisplayAffinity(HWND(hwnd), affinity)
 
 
 def signed_hiword(value: int) -> int:

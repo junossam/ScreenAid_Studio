@@ -95,6 +95,7 @@ class OverlayWindow(QWidget):
         self.bus.subscribe("overlay.capture_visuals.suspended", self._set_capture_visuals_suspended)
         self.bus.subscribe("settings.saved", self._settings_saved)
         self.bus.subscribe("overlay.clear", self._clear)
+        self.bus.subscribe("overlay.repaint", self._repaint_requested)
 
     def _handle_mouse_event(self, event: Event) -> None:
         if self._paused:
@@ -174,6 +175,9 @@ class OverlayWindow(QWidget):
         self._button_tracker.reset()
         self._held_click_buttons.clear()
         self._animation_timer.stop()
+        self.update()
+
+    def _repaint_requested(self, _event: Event) -> None:
         self.update()
 
     def _set_capture_visuals_suspended(self, event: Event) -> None:

@@ -18,6 +18,7 @@ class CommandId(StrEnum):
     OPEN_COMMAND_MODE = "command_mode.open"
     CAPTURE_REGION = "capture.region"
     CAPTURE_LAST_REGION = "capture.last_region"
+    SAVE_LAST_CAPTURE = "capture.save_last"
     CAPTURE_CURRENT_MONITOR = "capture.current_monitor"
     CAPTURE_VIRTUAL_SCREEN = "capture.virtual_screen"
     CAPTURE_ACTIVE_WINDOW = "capture.active_window"
@@ -26,3 +27,4 @@ class CommandId(StrEnum):
     LIVE_REGION = "live.region"
     LIVE_STOP_ALL = "live.stop_all"
     FULLSCREEN_MAGNIFIER = "magnifier.fullscreen"
+    LIVE_MAGNIFIER = "magnifier.live"

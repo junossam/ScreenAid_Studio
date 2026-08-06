@@ -189,6 +189,8 @@ class GlobalMouseHook(Service):
         self._block_overlay_input = not bool(event.payload.get("pass_through", True))
 
     def _drawing_mode_changed(self, event) -> None:
+        if event.payload.get("scope", "overlay") != "overlay":
+            return
         self._block_overlay_input = not bool(event.payload.get("pass_through", True))
 
     def _input_exclusion_changed(self, event) -> None:

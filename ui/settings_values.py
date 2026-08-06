@@ -138,6 +138,8 @@ def _load_windows(dialog) -> None:
     dialog.live_queue_size.setValue(dialog._int("live_view", "max_queue_size", 1))
     dialog.magnifier_enabled.setChecked(dialog._bool("magnifier", "enabled", True))
     dialog.magnifier_scale.setValue(dialog._float("magnifier", "scale", 2.0))
+    dialog.magnifier_keep_drawings.setChecked(dialog._bool("magnifier", "keep_drawings_on_close", False))
+    dialog.magnifier_live_scale.setValue(dialog._float("magnifier", "live_scale", 2.0))
 
 
 def _load_region_and_keys(dialog) -> None:
@@ -269,6 +271,8 @@ def _save_windows(dialog) -> None:
     dialog._set("live_view", "max_queue_size", 1)
     dialog._set("magnifier", "enabled", dialog.magnifier_enabled.isChecked())
     dialog._set("magnifier", "scale", dialog.magnifier_scale.value())
+    dialog._set("magnifier", "keep_drawings_on_close", dialog.magnifier_keep_drawings.isChecked())
+    dialog._set("magnifier", "live_scale", dialog.magnifier_live_scale.value())
 
 
 def _save_region_and_keys(dialog) -> None:

@@ -252,8 +252,16 @@ def build_magnifier_tab(dialog) -> QWidget:
     layout = QFormLayout(widget)
     dialog.magnifier_enabled = QCheckBox()
     dialog.magnifier_scale = dialog._double_spin(1.1, 5.0, 0.1)
+    dialog.magnifier_keep_drawings = QCheckBox()
+    dialog.magnifier_live_scale = dialog._double_spin(1.1, 5.0, 0.1)
+    description = QLabel(tr("settings.magnifier_live_description"))
+    description.setWordWrap(True)
+    description.setStyleSheet("QLabel { color: #555; padding-bottom: 6px; }")
+    layout.addRow(description)
     layout.addRow(tr("settings.enable_magnifier"), dialog.magnifier_enabled)
     layout.addRow(tr("settings.magnifier_scale"), dialog.magnifier_scale)
+    layout.addRow(tr("settings.magnifier_keep_drawings"), dialog.magnifier_keep_drawings)
+    layout.addRow(tr("settings.magnifier_live_scale"), dialog.magnifier_live_scale)
     return widget
 
 

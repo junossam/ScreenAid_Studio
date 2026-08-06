@@ -167,6 +167,8 @@ class MagnifierSettings:
     enabled: bool
     scale: float
     size: int
+    keep_drawings_on_close: bool
+    live_scale: float
 
 
 @dataclass(frozen=True)
@@ -337,6 +339,7 @@ class Settings:
                     "redo_drawing": parser.get("command_mode", "redo_drawing", fallback="Y"),
                     "capture_region": parser.get("command_mode", "capture_region", fallback="R"),
                     "capture_last_region": parser.get("command_mode", "capture_last_region", fallback="L"),
+                    "save_last_capture": parser.get("command_mode", "save_last_capture", fallback="I"),
                     "capture_monitor": parser.get("command_mode", "capture_monitor", fallback="M"),
                     "capture_virtual": parser.get("command_mode", "capture_virtual", fallback="V"),
                     "capture_window": parser.get("command_mode", "capture_window", fallback="W"),
@@ -345,6 +348,7 @@ class Settings:
                     "live_region": parser.get("command_mode", "live_region", fallback="G"),
                     "live_stop_all": parser.get("command_mode", "live_stop_all", fallback="X"),
                     "fullscreen_magnifier": parser.get("command_mode", "fullscreen_magnifier", fallback="F"),
+                    "live_magnifier": parser.get("command_mode", "live_magnifier", fallback="J"),
                     "open_settings": parser.get("command_mode", "open_settings", fallback="S"),
                     "toggle_pause": parser.get("command_mode", "toggle_pause", fallback="Space"),
                 },
@@ -364,5 +368,7 @@ class Settings:
                 enabled=parser.getboolean("magnifier", "enabled", fallback=True),
                 scale=parser.getfloat("magnifier", "scale", fallback=2.0),
                 size=parser.getint("magnifier", "size", fallback=260),
+                keep_drawings_on_close=parser.getboolean("magnifier", "keep_drawings_on_close", fallback=False),
+                live_scale=parser.getfloat("magnifier", "live_scale", fallback=2.0),
             ),
         )

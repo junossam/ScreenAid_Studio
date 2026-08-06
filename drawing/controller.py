@@ -33,6 +33,7 @@ class DrawingController(Service):
             self.bus.subscribe("drawing.clear", self._clear),
             self.bus.subscribe("drawing.undo", self._undo),
             self.bus.subscribe("drawing.redo", self._redo),
+            self.bus.subscribe("drawing.shape.commit", self._commit_shape),
             self.bus.subscribe("drawing.tool.select", self._select_tool),
             self.bus.subscribe("drawing.style.change", self._change_style),
             self.bus.subscribe("settings.saved", self._settings_saved),
@@ -120,6 +121,13 @@ class DrawingController(Service):
     def _redo(self, _event: Event) -> None:
         dirty = self.document.redo()
         self.bus.publish("drawing.document.changed", dirty=dirty)
+
+    def _commit_shape(self, event: Event) -> None:
+        shape = event.payload.get("shape")
+        if shape is None:
+            return
+        dirty = self.document.add_shape(shape)
+        self.bus.publish("drawing.shape.added", shape=shape, dirty=dirty)
 
     def _select_tool(self, event: Event) -> None:
         tool = event.payload.get("tool")

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from shutil import rmtree
 
 from core.localization import available_languages, configure_localization, tr
 
@@ -22,6 +23,31 @@ class LocalizationTest(unittest.TestCase):
         self.assertEqual("설정", tr("tray.settings"))
         self.assertEqual("프로그램 정보", tr("settings.tab.about"))
         self.assertEqual("settings.title.missing", tr("settings.title.missing"))
+
+    def test_locale_files_can_be_utf16_or_cp949(self) -> None:
+        temp = ROOT / "tests" / ".tmp_locales"
+        if temp.exists():
+            rmtree(temp)
+        temp.mkdir(parents=True)
+        try:
+            (temp / "en.ini").write_text(
+                "[meta]\nname = English\n\n[strings]\ntray.settings = Settings\n",
+                encoding="utf-16",
+            )
+            (temp / "ko.ini").write_text(
+                "[meta]\nname = Korean\n\n[strings]\ntray.settings = Korean Settings\n",
+                encoding="cp949",
+            )
+
+            languages = {language.code: language.name for language in available_languages(temp)}
+            configure_localization(temp, "ko")
+
+            self.assertEqual("Korean", languages["ko"])
+            self.assertEqual("English", languages["en"])
+            self.assertEqual("Korean Settings", tr("tray.settings"))
+        finally:
+            if temp.exists():
+                rmtree(temp)
 
     def test_source_uses_translation_keys_for_primary_menus(self) -> None:
         tray = (ROOT / "tray" / "tray_icon.py").read_text(encoding="utf-8")

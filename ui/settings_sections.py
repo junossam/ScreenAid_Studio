@@ -28,6 +28,7 @@ COMMAND_KEY_DEFAULTS = {
     "redo_drawing": "Y",
     "capture_region": "R",
     "capture_last_region": "L",
+    "save_last_capture": "I",
     "capture_monitor": "M",
     "capture_virtual": "V",
     "capture_window": "W",
@@ -36,6 +37,7 @@ COMMAND_KEY_DEFAULTS = {
     "live_region": "G",
     "live_stop_all": "X",
     "fullscreen_magnifier": "F",
+    "live_magnifier": "J",
     "open_settings": "S",
     "toggle_pause": "Space",
 }
