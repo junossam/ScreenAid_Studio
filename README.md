@@ -1,7 +1,7 @@
 # ScreenAid Studio
 
 ScreenAid Studio는 발표, 수업, 온라인 강의, 화면 시연을 위한 Windows 전용 화면 보조 도구입니다.
-마우스 클릭 표시, 화면 그리기, 영역 캡처, 고정 화면, 실시간 영역 화면, 현재 화면 확대, Windows 기반 실시간 전체 화면 확대 기능을 제공합니다.
+마우스 클릭 표시, 화면 그리기, 영역 캡처, 고정 화면, 실시간 영역 화면, 현재 화면 확대, Windows 기본 돋보기 연동 기능을 제공합니다.
 
 ## 기본 정보
 
@@ -68,7 +68,7 @@ py -3.12 -m venv .venv
 - 고정 화면
 - 실시간 영역 화면
 - 현재 화면 확대 및 확대 화면 위 그리기
-- Windows Magnification API 기반 실시간 전체 화면 확대
+- Windows 기본 돋보기 연동
 - 한국어/영어 UI
 - 명령 모드 단축키
 - 트레이 아이콘 상태 표시
@@ -104,7 +104,6 @@ py -3.12 -m venv .venv
 | `G` | 실시간 영역 선택 |
 | `X` | 실시간 화면 모두 닫기 |
 | `F` | 현재 화면 확대 |
-| `J` | 실시간 전체 화면 확대 |
 | `S` | 설정창 열기 |
 | `Space` | 전체 일시중지/재개 |
 | `Esc` | 명령 모드 또는 확대 상태 닫기 |
@@ -116,10 +115,7 @@ py -3.12 -m venv .venv
 | 기능 | 실행 | 설명 |
 | --- | --- | --- |
 | 현재 화면 확대 | `Ctrl + Alt + A` 후 `F` | 현재 화면을 캡처한 확대 화면입니다. 확대 중 `D`를 눌러 확대 화면 위에 그릴 수 있습니다. |
-| 실시간 전체 화면 확대 | `Ctrl + Alt + A` 후 `J` | Windows Magnification API를 사용해 마우스 위치 주변을 실시간으로 확대합니다. |
 | 실시간 영역 화면 | `Ctrl + Alt + A` 후 `G` | 사용자가 드래그한 영역을 별도 작은 창으로 계속 갱신합니다. |
-
-실시간 전체 화면 확대의 입력 위치 보정은 Windows의 `MagSetInputTransform`을 사용합니다. 이 기능은 실행 환경의 UIAccess 권한 상태에 영향을 받을 수 있으므로, 포터블 EXE를 다른 PC에서 사용할 때는 실제 환경 테스트가 필요합니다.
 
 ## 설정 저장 위치
 
@@ -142,12 +138,6 @@ py -3.12 -m venv .venv
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests
-```
-
-품질 게이트:
-
-```powershell
-python tools\quality_gate.py
 ```
 
 ## EXE 빌드

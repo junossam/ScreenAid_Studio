@@ -18,6 +18,7 @@ class DrawingController(Service):
         self.document = DrawingDocument()
         self._tool: DrawingTool = create_tool(settings)
         self._drawing = False
+        self._erasing = False
         self._subscriptions: list[Subscription] = []
 
     def start(self) -> None:
@@ -47,6 +48,7 @@ class DrawingController(Service):
         self._subscriptions.clear()
         self._tool.cancel()
         self._drawing = False
+        self._erasing = False
 
     def _pointer_down(self, event: Event) -> None:
         pointer = event.payload["event"]
@@ -54,8 +56,8 @@ class DrawingController(Service):
             if self.eraser_settings.mode == "pixel":
                 self._start_pixel_eraser(pointer)
             else:
-                dirty = self.document.erase_at(pointer.position)
-                self.bus.publish("drawing.document.changed", dirty=dirty)
+                self._erasing = True
+                self._erase_at(pointer.position)
             return
         self._drawing = True
         self._tool.pointer_down(pointer)
@@ -64,6 +66,9 @@ class DrawingController(Service):
             self.bus.publish("drawing.preview.changed", preview=preview, dirty=preview.bounds())
 
     def _pointer_move(self, event: Event) -> None:
+        if self._erasing:
+            self._erase_at(event.payload["event"].position)
+            return
         if not self._drawing:
             return
         preview = self._tool.preview()
@@ -77,6 +82,9 @@ class DrawingController(Service):
             self.bus.publish("drawing.preview.changed", preview=preview, dirty=dirty)
 
     def _pointer_up(self, event: Event) -> None:
+        if self._erasing:
+            self._erasing = False
+            return
         if not self._drawing:
             return
         preview = self._tool.preview()
@@ -92,6 +100,11 @@ class DrawingController(Service):
             dirty = dirty.united(old_bounds)
         self.bus.publish("drawing.shape.added", shape=shape, dirty=dirty)
 
+    def _erase_at(self, position) -> None:
+        dirty = self.document.erase_at(position)
+        if not dirty.isNull():
+            self.bus.publish("drawing.document.changed", dirty=dirty)
+
     def _start_pixel_eraser(self, pointer) -> None:
         eraser_width = max(1, self.eraser_settings.size)
         self._drawing = True
@@ -105,6 +118,7 @@ class DrawingController(Service):
         preview = self._tool.preview()
         self._tool.cancel()
         self._drawing = False
+        self._erasing = False
         if preview:
             self.bus.publish("drawing.preview.cleared", dirty=preview.bounds())
 
@@ -112,6 +126,7 @@ class DrawingController(Service):
         dirty = self.document.clear()
         self._tool.cancel()
         self._drawing = False
+        self._erasing = False
         self.bus.publish("drawing.document.changed", dirty=dirty)
 
     def _undo(self, _event: Event) -> None:

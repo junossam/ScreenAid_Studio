@@ -27,4 +27,3 @@ class CommandId(StrEnum):
     LIVE_REGION = "live.region"
     LIVE_STOP_ALL = "live.stop_all"
     FULLSCREEN_MAGNIFIER = "magnifier.fullscreen"
-    LIVE_MAGNIFIER = "magnifier.live"

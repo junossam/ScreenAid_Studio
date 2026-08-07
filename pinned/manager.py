@@ -71,7 +71,7 @@ class PinnedWindowManager(Service):
             return
         if self._selection:
             self._selection.close()
-        self._selection = RegionSelectionOverlay(self.settings.region_selection, self._region_selected)
+        self._selection = RegionSelectionOverlay(self.bus, self.settings.region_selection, self._region_selected)
         self._selection.begin()
 
     def _region_selected(self, rect: QRect | None) -> None:

@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Callable, DefaultDict
 from uuid import uuid4
+
+# Only emits output when core.diagnostics.Diagnostics has attached a handler
+# (i.e. developer.log exists next to main.py) - silent otherwise, per
+# NFR-PRIV-001 (no runtime log files in normal use).
+_LOGGER = logging.getLogger("ScreenAidStudio")
 
 
 @dataclass(frozen=True)
@@ -46,4 +52,4 @@ class EventBus:
             try:
                 handler(event)
             except Exception:
-                pass
+                _LOGGER.exception("Event handler for %s raised an exception", name)

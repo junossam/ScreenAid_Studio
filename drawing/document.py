@@ -2,9 +2,13 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from PySide6.QtCore import QRect
+from PySide6.QtCore import QPointF, QRect
+from PySide6.QtGui import QPainterPathStroker
 
-from drawing.shapes import Shape
+from drawing.geometry import shape_fill_path, shape_stroke_path
+from drawing.shapes import Shape, ShapeType
+
+MIN_ERASE_HIT_WIDTH = 12
 
 
 class DrawingDocument:
@@ -43,12 +47,28 @@ class DrawingDocument:
         return shape.bounds()
 
     def erase_at(self, point) -> QRect:
+        click = QPointF(point)
         for shape in sorted(self._shapes, key=lambda item: item.z_index, reverse=True):
-            if shape.bounds().contains(point):
-                self._shapes.remove(shape)
-                self._redo_stack.clear()
-                return shape.bounds()
+            if not shape.bounds().contains(point):
+                continue
+            if not self._hit_test(shape, click):
+                continue
+            self._shapes.remove(shape)
+            self._redo_stack.clear()
+            return shape.bounds()
         return QRect()
+
+    @staticmethod
+    def _hit_test(shape: Shape, click: QPointF) -> bool:
+        if shape.shape_type == ShapeType.STAMP or len(shape.points) < 2:
+            # Bounds already matched above; stamps are compact icon shapes
+            # where the bounding box is a good enough hit region.
+            return True
+        if shape.shape_type in {ShapeType.RECTANGLE, ShapeType.ELLIPSE}:
+            return shape_fill_path(shape).contains(click)
+        stroker = QPainterPathStroker()
+        stroker.setWidth(max(shape.stroke_width, MIN_ERASE_HIT_WIDTH))
+        return stroker.createStroke(shape_stroke_path(shape)).contains(click)
 
     def shapes(self) -> Iterable[Shape]:
         return tuple(sorted(self._shapes, key=lambda shape: shape.z_index))

@@ -5,6 +5,7 @@ from math import atan2, cos, sin
 from PySide6.QtCore import QPointF, QRect, Qt
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QPolygonF
 
+from drawing.geometry import curve_path
 from drawing.shapes import Shape, ShapeType
 
 
@@ -64,17 +65,7 @@ class ShapeRenderer:
         painter.restore()
 
     def _path(self, shape: Shape) -> QPainterPath:
-        path = QPainterPath(shape.points[0])
-        if len(shape.points) == 2:
-            path.lineTo(shape.points[1])
-            return path
-        for index in range(1, len(shape.points) - 1):
-            current = shape.points[index]
-            next_point = shape.points[index + 1]
-            mid = (current + next_point) / 2
-            path.quadTo(current, mid)
-        path.lineTo(shape.points[-1])
-        return path
+        return curve_path(shape.points)
 
     def _paint_arrow_head(self, painter: QPainter, start, end, width: int) -> None:
         angle = atan2(end.y() - start.y(), end.x() - start.x())

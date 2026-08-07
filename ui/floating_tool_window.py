@@ -4,6 +4,8 @@ from PySide6.QtCore import QPoint, QRect, Qt, Signal
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import QLabel, QWidget
 
+from core.localization import tr
+
 
 class FloatingToolWindow(QWidget):
     input_geometry_changed = Signal(object)
@@ -102,7 +104,7 @@ class FloatingToolWindow(QWidget):
 
 class ToolDragHandle(QLabel):
     def __init__(self, owner: FloatingToolWindow) -> None:
-        super().__init__("Move", owner)
+        super().__init__(tr("tool.move"), owner)
         self._owner = owner
         self.setCursor(Qt.CursorShape.SizeAllCursor)
 

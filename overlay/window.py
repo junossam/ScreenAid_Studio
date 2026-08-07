@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QDateTime, QPoint, QRect, QTimer, Qt
+from PySide6.QtCore import QDateTime, QObject, QPoint, QRect, QTimer, Qt
 from PySide6.QtGui import QColor, QCursor, QFont, QGuiApplication, QImage, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QWidget
 
@@ -18,7 +18,18 @@ from overlay.effects import ClickButtonTracker, ClickEffect, ClickEffectType
 from utils.winapi import set_click_through
 
 
-class OverlayWindow(QWidget):
+class OverlayWindow(QObject):
+    """Coordinates one borderless topmost window per monitor for click
+    indicators and full-screen drawing.
+
+    A single window spanning multiple monitors with different display
+    scale factors cannot be rendered or hit-tested correctly by Windows -
+    one HWND only has one DPI context - so one window is created per
+    QScreen instead. All state (drawing document, click effects, pass
+    through mode) lives here; each per-monitor window just paints its own
+    slice of that shared state, translated into its own local coordinates.
+    """
+
     def __init__(self, settings: Settings, bus: EventBus, base_dir: Path) -> None:
         super().__init__()
         self.settings = settings
@@ -39,45 +50,39 @@ class OverlayWindow(QWidget):
         self._paused = False
         self._click_effects_visible = True
         self._capture_visual_suppressions: set[str] = set()
-        self._origin = QPoint(0, 0)
         self._animation_timer = QTimer(self)
         self._animation_timer.setInterval(33)
         self._animation_timer.timeout.connect(self._tick_effects)
-        self._setup_window()
+        self._windows: list[_MonitorOverlayWindow] = []
+        self._create_windows()
         self._wire_events()
 
-    def showEvent(self, event) -> None:
-        super().showEvent(event)
-        self._apply_input_mode()
+    # -- QWidget-like interface used by AppController --------------------
 
-    def paintEvent(self, _event) -> None:
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        self._paint_input_capture_surface(painter)
-        painter.translate(-self._origin.x(), -self._origin.y())
-        if self._document:
-            for shape in self._document.shapes():
-                self._renderer.paint_shape(painter, shape)
-        if self._preview:
-            self._renderer.paint_shape(painter, self._preview)
-        if self._click_effect and not self._capture_visual_suppressions:
-            self._paint_click_effect(painter, self._click_effect)
+    def show(self) -> None:
+        for window in self._windows:
+            window.show()
 
-    def closeEvent(self, event) -> None:
+    def hide(self) -> None:
+        for window in self._windows:
+            window.hide()
+
+    def close(self) -> None:
         self._set_pen_cursor_active(False)
-        super().closeEvent(event)
+        for window in self._windows:
+            window.close()
 
-    def _setup_window(self) -> None:
-        rect = self._coordinates.qt_virtual_screen_rect()
-        self._origin = rect.topLeft()
-        self.setGeometry(rect)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
-        self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
-        self.setWindowFlag(Qt.WindowType.Tool, True)
-        self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
-        self.setWindowFlag(Qt.WindowType.WindowDoesNotAcceptFocus, True)
-        self.setMouseTracking(True)
+    def isVisible(self) -> bool:
+        return any(window.isVisible() for window in self._windows)
+
+    # -- window management -------------------------------------------------
+
+    def _create_windows(self) -> None:
+        for screen in QGuiApplication.screens():
+            self._windows.append(_MonitorOverlayWindow(screen, self))
+
+    def showEvent(self) -> None:
+        self._apply_input_mode()
 
     def _wire_events(self) -> None:
         self.bus.subscribe("mouse.event", self._handle_mouse_event)
@@ -112,7 +117,12 @@ class OverlayWindow(QWidget):
             self._held_click_buttons.add(mouse_event.event_type)
             self._start_click_effect(mouse_event, hold_until_release=True)
         elif mouse_event.event_type == MouseEventType.MOVE:
-            if self._held_click_buttons:
+            if MouseEventType.MIDDLE_DOWN in self._held_click_buttons:
+                if self._button_tracker.apply(mouse_event) == ClickEffectType.MIDDLE:
+                    self._start_click_effect(mouse_event, hold_until_release=True)
+                else:
+                    self._move_click_effect(mouse_event)
+            elif self._held_click_buttons:
                 self._move_click_effect(mouse_event)
         elif mouse_event.event_type in {MouseEventType.WHEEL, MouseEventType.HWHEEL}:
             self._start_click_effect(mouse_event, hold_until_release=False)
@@ -123,51 +133,29 @@ class OverlayWindow(QWidget):
             if not self._held_click_buttons:
                 self._release_click_effect()
 
-    def mousePressEvent(self, event) -> None:
-        if self._pass_through or event.button() != Qt.MouseButton.LeftButton:
-            event.ignore()
-            return
-        event.accept()
-
-    def mouseMoveEvent(self, event) -> None:
-        if self._pass_through:
-            event.ignore()
-            return
-        event.accept()
-
-    def mouseReleaseEvent(self, event) -> None:
-        if self._pass_through or event.button() != Qt.MouseButton.LeftButton:
-            event.ignore()
-            return
-        event.accept()
-
-    def keyPressEvent(self, event) -> None:
-        if event.key() == Qt.Key.Key_Escape:
-            self.bus.publish("drawing.cancel")
-            event.accept()
-            return
-        super().keyPressEvent(event)
-
     def _set_document(self, event: Event) -> None:
         self._document = event.payload["document"]
-        self.update()
+        self._repaint_all()
 
     def _preview_changed(self, event: Event) -> None:
         self._preview = event.payload["preview"]
-        self.update(self._to_local_rect(event.payload["dirty"]))
+        self._repaint_rect(event.payload["dirty"])
 
     def _preview_cleared(self, event: Event) -> None:
         self._preview = None
-        self.update(self._to_local_rect(event.payload["dirty"]))
+        self._repaint_rect(event.payload["dirty"])
 
     def _shape_added(self, event: Event) -> None:
         self._preview = None
-        self.update(self._to_local_rect(event.payload["dirty"]))
+        self._repaint_rect(event.payload["dirty"])
 
     def _document_changed(self, event: Event) -> None:
         self._preview = None
         dirty = event.payload["dirty"]
-        self.update(self._to_local_rect(dirty) if not dirty.isNull() else QRect())
+        if dirty.isNull():
+            self._repaint_all()
+        else:
+            self._repaint_rect(dirty)
 
     def _clear(self, _event: Event) -> None:
         self._click_effect = None
@@ -175,10 +163,10 @@ class OverlayWindow(QWidget):
         self._button_tracker.reset()
         self._held_click_buttons.clear()
         self._animation_timer.stop()
-        self.update()
+        self._repaint_all()
 
     def _repaint_requested(self, _event: Event) -> None:
-        self.update()
+        self._repaint_all()
 
     def _set_capture_visuals_suspended(self, event: Event) -> None:
         source = str(event.payload.get("source", "capture"))
@@ -191,10 +179,15 @@ class OverlayWindow(QWidget):
             self._animation_timer.stop()
         else:
             self._capture_visual_suppressions.discard(source)
-        self.update()
+        self._repaint_all()
 
-    def _to_local_rect(self, rect: QRect) -> QRect:
-        return rect.translated(-self._origin.x(), -self._origin.y())
+    def _repaint_all(self) -> None:
+        for window in self._windows:
+            window.update()
+
+    def _repaint_rect(self, rect_global: QRect) -> None:
+        for window in self._windows:
+            window.update(rect_global.translated(-window.origin()))
 
     def _start_click_effect(self, event: MouseEvent, *, hold_until_release: bool) -> None:
         effect_type = self._effect_type(event)
@@ -215,7 +208,7 @@ class OverlayWindow(QWidget):
             fade_ms=self.settings.click_indicator.fade_ms,
         )
         dirty = old_dirty.united(self._effect_dirty_bounds(self._click_effect))
-        self.update(self._to_local_rect(dirty))
+        self._repaint_rect(dirty)
         if not self._animation_timer.isActive():
             self._animation_timer.start()
 
@@ -225,7 +218,7 @@ class OverlayWindow(QWidget):
         old_dirty = self._effect_dirty_bounds(self._click_effect)
         self._click_effect.center = self._physical_to_qt_point(event.x, event.y)
         dirty = old_dirty.united(self._effect_dirty_bounds(self._click_effect))
-        self.update(self._to_local_rect(dirty))
+        self._repaint_rect(dirty)
 
     def _release_click_effect(self) -> None:
         if not self._click_effect:
@@ -242,7 +235,16 @@ class OverlayWindow(QWidget):
         if not self._click_effect.update(self._now_ms()):
             self._click_effect = None
             self._animation_timer.stop()
-        self.update(self._to_local_rect(dirty))
+        self._repaint_rect(dirty)
+
+    def _paint_content(self, painter: QPainter) -> None:
+        if self._document:
+            for shape in self._document.shapes():
+                self._renderer.paint_shape(painter, shape)
+        if self._preview:
+            self._renderer.paint_shape(painter, self._preview)
+        if self._click_effect and not self._capture_visual_suppressions:
+            self._paint_click_effect(painter, self._click_effect)
 
     def _paint_click_effect(self, painter: QPainter, effect: ClickEffect) -> None:
         painter.save()
@@ -322,10 +324,10 @@ class OverlayWindow(QWidget):
         rect = effect.bounds().translated(0, effect.current_radius() + 8)
         painter.drawText(rect, Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop, text)
 
-    def _paint_input_capture_surface(self, painter: QPainter) -> None:
+    def _paint_input_capture_surface(self, painter: QPainter, rect: QRect) -> None:
         if self._pass_through or self._paused:
             return
-        painter.fillRect(self.rect(), QColor(0, 0, 0, 1))
+        painter.fillRect(rect, QColor(0, 0, 0, 1))
 
     def _effect_type(self, event: MouseEvent) -> ClickEffectType | None:
         effect_type = self._button_tracker.apply(event)
@@ -357,7 +359,7 @@ class OverlayWindow(QWidget):
             self._button_tracker.reset()
             self._held_click_buttons.clear()
             self._animation_timer.stop()
-            self.update()
+            self._repaint_all()
 
     def _toggle_click_effects(self, _event: Event) -> None:
         self._click_effects_visible = not self._click_effects_visible
@@ -366,7 +368,7 @@ class OverlayWindow(QWidget):
             self._button_tracker.reset()
             self._held_click_buttons.clear()
             self._animation_timer.stop()
-            self.update()
+            self._repaint_all()
         self.bus.publish("click_effects.temp.changed", enabled=self._click_effects_visible)
 
     def _click_effects_enabled(self) -> bool:
@@ -442,7 +444,7 @@ class OverlayWindow(QWidget):
             self._held_click_buttons.clear()
             self._animation_timer.stop()
         self._apply_input_mode()
-        self.update()
+        self._repaint_all()
 
     def _handle_drawing_mouse_event(self, event: MouseEvent) -> None:
         if event.event_type == MouseEventType.LEFT_DOWN:
@@ -453,19 +455,23 @@ class OverlayWindow(QWidget):
             self.bus.publish("drawing.pointer.up", event=self._pointer_event_from_mouse(event))
 
     def _apply_input_mode(self) -> None:
-        hwnd = int(self.winId()) if self.winId() else 0
-        if hwnd:
-            set_click_through(hwnd, self._pass_through)
-        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, self._pass_through)
+        hwnds: list[int] = []
+        for window in self._windows:
+            hwnd = int(window.winId()) if window.winId() else 0
+            if hwnd:
+                set_click_through(hwnd, self._pass_through)
+                hwnds.append(hwnd)
+            window.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, self._pass_through)
         cursor_active = not self._pass_through and not self._paused
-        if cursor_active:
-            self.setCursor(self._pen_cursor)
-        else:
-            self.unsetCursor()
+        for window in self._windows:
+            if cursor_active:
+                window.setCursor(self._pen_cursor)
+            else:
+                window.unsetCursor()
         self._set_pen_cursor_active(cursor_active)
-        self.update()
-        if hwnd:
-            self.bus.publish("overlay.input_mode.changed", hwnd=hwnd, pass_through=self._pass_through)
+        self._repaint_all()
+        if hwnds:
+            self.bus.publish("overlay.input_mode.changed", hwnds=hwnds, pass_through=self._pass_through)
 
     def _drawing_style_changed(self, event: Event) -> None:
         color = event.payload.get("color")
@@ -479,7 +485,8 @@ class OverlayWindow(QWidget):
             self._set_pen_cursor_active(False)
         self._pen_cursor = self._create_pen_cursor(color)
         if not self._pass_through and not self._paused:
-            self.setCursor(self._pen_cursor)
+            for window in self._windows:
+                window.setCursor(self._pen_cursor)
             self._set_pen_cursor_active(True)
 
     def _set_pen_cursor_active(self, active: bool) -> None:
@@ -506,17 +513,6 @@ class OverlayWindow(QWidget):
         painter.drawLine(23, 10, 27, 6)
         painter.end()
         return QCursor(pixmap, 8, 25)
-
-    def _pointer_event(self, event) -> PointerEvent:
-        local = event.position().toPoint()
-        point = local + self._origin
-        modifiers = event.modifiers()
-        return PointerEvent(
-            position=point,
-            timestamp_ms=self._now_ms(),
-            shift=bool(modifiers & Qt.KeyboardModifier.ShiftModifier),
-            alt=bool(modifiers & Qt.KeyboardModifier.AltModifier),
-        )
 
     def _pointer_event_from_mouse(self, event: MouseEvent) -> PointerEvent:
         return PointerEvent(
@@ -545,3 +541,57 @@ class OverlayWindow(QWidget):
             MouseEventType.MIDDLE_UP: MouseEventType.MIDDLE_DOWN,
         }
         return mapping[event_type]
+
+
+class _MonitorOverlayWindow(QWidget):
+    def __init__(self, screen, coordinator: OverlayWindow) -> None:
+        super().__init__()
+        self._coordinator = coordinator
+        self.setScreen(screen)
+        self.setGeometry(screen.geometry())
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
+        self.setWindowFlag(Qt.WindowType.Tool, True)
+        self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
+        self.setWindowFlag(Qt.WindowType.WindowDoesNotAcceptFocus, True)
+        self.setMouseTracking(True)
+
+    def origin(self) -> QPoint:
+        return self.geometry().topLeft()
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        self._coordinator.showEvent()
+
+    def paintEvent(self, _event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        self._coordinator._paint_input_capture_surface(painter, self.rect())
+        painter.translate(-self.origin())
+        self._coordinator._paint_content(painter)
+
+    def mousePressEvent(self, event) -> None:
+        if self._coordinator._pass_through or event.button() != Qt.MouseButton.LeftButton:
+            event.ignore()
+            return
+        event.accept()
+
+    def mouseMoveEvent(self, event) -> None:
+        if self._coordinator._pass_through:
+            event.ignore()
+            return
+        event.accept()
+
+    def mouseReleaseEvent(self, event) -> None:
+        if self._coordinator._pass_through or event.button() != Qt.MouseButton.LeftButton:
+            event.ignore()
+            return
+        event.accept()
+
+    def keyPressEvent(self, event) -> None:
+        if event.key() == Qt.Key.Key_Escape:
+            self._coordinator.bus.publish("drawing.cancel")
+            event.accept()
+            return
+        super().keyPressEvent(event)

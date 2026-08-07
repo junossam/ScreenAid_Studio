@@ -47,6 +47,19 @@ class DrawingDocumentTests(unittest.TestCase):
         self.assertFalse(dirty.isNull())
         self.assertEqual(tuple(document.shapes()), (bottom,))
 
+    def test_erase_at_does_not_hit_empty_corner_of_diagonal_line_bounds(self) -> None:
+        document = DrawingDocument()
+        line = Shape(ShapeType.LINE, [QPoint(0, 0), QPoint(100, 100)], "#fff", 3)
+        document.add_shape(line)
+
+        near_corner = document.erase_at(QPoint(95, 5))
+        self.assertTrue(near_corner.isNull())
+        self.assertEqual(len(tuple(document.shapes())), 1)
+
+        on_the_line = document.erase_at(QPoint(50, 50))
+        self.assertFalse(on_the_line.isNull())
+        self.assertTrue(document.is_empty())
+
     def test_can_redo_tracks_redo_stack(self) -> None:
         document = DrawingDocument()
         shape = Shape(ShapeType.LINE, [QPoint(0, 0), QPoint(20, 20)], "#fff", 2)

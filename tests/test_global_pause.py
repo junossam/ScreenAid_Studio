@@ -74,7 +74,6 @@ class GlobalPauseTest(unittest.TestCase):
         self.assertIn('"pin_last_capture": CommandId.PIN_LAST_CAPTURE', command_mode)
         self.assertIn('"live_stop_all": CommandId.LIVE_STOP_ALL', command_mode)
         self.assertIn('"fullscreen_magnifier": CommandId.FULLSCREEN_MAGNIFIER', command_mode)
-        self.assertIn('"live_magnifier": CommandId.LIVE_MAGNIFIER', command_mode)
         self.assertIn("COMMAND_MODE_GROUPS", command_mode)
         self.assertIn("command_mode.group.drawing", command_mode)
         self.assertIn("command_mode.group.capture", command_mode)
@@ -99,15 +98,12 @@ class GlobalPauseTest(unittest.TestCase):
         controller = self._source("core/app_controller.py")
         container = self._source("application/service_container.py")
         magnifier = self._source("magnifier/window.py")
-        windows_api = self._source("magnifier/windows_api.py")
         locales = self._source("locales/ko.ini") + self._source("locales/en.ini")
 
         self.assertIn('FULLSCREEN_MAGNIFIER = "magnifier.fullscreen"', commands)
         self.assertIn('self._publish_when_active("magnifier.fullscreen.toggle")', controller)
-        self.assertIn(
-            "MagnifierWindow(settings=settings.magnifier, drawing_settings=settings.drawing, bus=event_bus)",
-            container,
-        )
+        self.assertIn("MagnifierWindow(", container)
+        self.assertIn("eraser_settings=settings.eraser", container)
         self.assertIn("FullscreenMagnifierWindow", magnifier)
         self.assertIn("grabWindow(0)", magnifier)
         self.assertIn("close_with_animation", magnifier)
@@ -120,10 +116,6 @@ class GlobalPauseTest(unittest.TestCase):
         self.assertIn("MAX_SCALE = 5.0", magnifier)
         self.assertNotIn("from PySide6.QtWidgets import QShortcut", magnifier)
         self.assertIn("hotkey.fullscreen_magnifier", locales)
-        self.assertIn("WindowsLiveMagnifier", magnifier)
-        self.assertIn("Magnification.dll", windows_api)
-        self.assertIn("MagSetFullscreenTransform", windows_api)
-        self.assertIn("MagSetInputTransform", windows_api)
 
 
 if __name__ == "__main__":

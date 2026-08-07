@@ -46,7 +46,10 @@ class GlobalMouseHook(Service):
         self._left_pressed = False
         self._right_pressed = False
         self._middle_pressed = False
-        self._overlay_hwnd = 0
+        self._left_press_emitted = False
+        self._right_press_emitted = False
+        self._middle_press_emitted = False
+        self._overlay_hwnds: set[int] = set()
         self._block_overlay_input = False
         self._blocking_suspended = False
         self._input_exclusions: dict[str, tuple[int, int, int, int]] = {}
@@ -115,44 +118,71 @@ class GlobalMouseHook(Service):
         )
 
     def _should_emit(self, event: MouseEvent) -> bool:
-        if self._blocking_suspended or self._is_inside_input_exclusion(event.x, event.y):
+        if self._blocking_suspended:
+            self._update_pressed_state(event)
+            return False
+        if self._is_inside_input_exclusion(event.x, event.y) and not self._is_release_of_emitted_press(event):
             self._update_pressed_state(event)
             return False
         if event.event_type == MouseEventType.LEFT_DOWN:
             self._left_pressed = True
+            self._left_press_emitted = True
             return True
         if event.event_type == MouseEventType.LEFT_UP:
             self._left_pressed = False
+            self._left_press_emitted = False
             return True
         if event.event_type == MouseEventType.RIGHT_DOWN:
             self._right_pressed = True
+            self._right_press_emitted = True
             return True
         if event.event_type == MouseEventType.RIGHT_UP:
             self._right_pressed = False
+            self._right_press_emitted = False
             return True
         if event.event_type == MouseEventType.MIDDLE_DOWN:
             self._middle_pressed = True
+            self._middle_press_emitted = True
             return True
         if event.event_type == MouseEventType.MIDDLE_UP:
             self._middle_pressed = False
+            self._middle_press_emitted = False
             return True
         if event.event_type == MouseEventType.MOVE:
             return self._any_button_pressed()
         return True
+
+    def _is_release_of_emitted_press(self, event: MouseEvent) -> bool:
+        # A press whose DOWN was already forwarded (started outside any
+        # exclusion zone) must always get its matching UP forwarded too,
+        # even if the cursor is now over an excluded widget - otherwise a
+        # drag that ends over the toolbar leaves the drawing tool stuck
+        # mid-stroke forever. A press whose DOWN was suppressed (started on
+        # the excluded widget itself) keeps its UP suppressed as before.
+        if event.event_type == MouseEventType.LEFT_UP:
+            return self._left_press_emitted
+        if event.event_type == MouseEventType.RIGHT_UP:
+            return self._right_press_emitted
+        if event.event_type == MouseEventType.MIDDLE_UP:
+            return self._middle_press_emitted
+        return False
 
     def _update_pressed_state(self, event: MouseEvent) -> None:
         if event.event_type == MouseEventType.LEFT_DOWN:
             self._left_pressed = True
         elif event.event_type == MouseEventType.LEFT_UP:
             self._left_pressed = False
+            self._left_press_emitted = False
         elif event.event_type == MouseEventType.RIGHT_DOWN:
             self._right_pressed = True
         elif event.event_type == MouseEventType.RIGHT_UP:
             self._right_pressed = False
+            self._right_press_emitted = False
         elif event.event_type == MouseEventType.MIDDLE_DOWN:
             self._middle_pressed = True
         elif event.event_type == MouseEventType.MIDDLE_UP:
             self._middle_pressed = False
+            self._middle_press_emitted = False
 
     def _any_button_pressed(self) -> bool:
         return (
@@ -171,7 +201,7 @@ class GlobalMouseHook(Service):
             return False
         if self._is_inside_input_exclusion(event.x, event.y):
             return False
-        if self._overlay_hwnd and window_from_point(event.x, event.y) == self._overlay_hwnd:
+        if self._overlay_hwnds and window_from_point(event.x, event.y) in self._overlay_hwnds:
             return True
         return event.event_type in {
             MouseEventType.LEFT_DOWN,
@@ -185,7 +215,7 @@ class GlobalMouseHook(Service):
         }
 
     def _overlay_input_mode_changed(self, event) -> None:
-        self._overlay_hwnd = int(event.payload.get("hwnd", 0))
+        self._overlay_hwnds = {int(hwnd) for hwnd in event.payload.get("hwnds", []) if hwnd}
         self._block_overlay_input = not bool(event.payload.get("pass_through", True))
 
     def _drawing_mode_changed(self, event) -> None:

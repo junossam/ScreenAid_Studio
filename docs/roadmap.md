@@ -18,7 +18,6 @@
 - Pinned capture windows
 - Worker-based live region view with queue size 1
 - Current-screen fullscreen magnifier with drawing support
-- Windows Magnification API based live fullscreen magnifier
 - Notification settings
 - Developer diagnostics via `developer.log`
 - PyInstaller folder distribution support
@@ -29,7 +28,6 @@
 - Manual verification on Windows 10 and Windows 11
 - Multi-monitor and mixed-DPI regression checks
 - Portable EXE verification on machines without Python
-- Windows Magnification API input behavior across UIAccess environments
 - Long-run idle CPU and memory checks
 - Capture quality and excluded overlay regression checks
 

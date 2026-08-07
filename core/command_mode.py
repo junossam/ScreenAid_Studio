@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ctypes
+import logging
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtGui import QFont
@@ -25,6 +26,8 @@ from utils.winapi import (
 )
 
 
+_LOGGER = logging.getLogger("ScreenAidStudio")
+
 COMMAND_MODE_COMMANDS = {
     "toggle_overlay": CommandId.TOGGLE_OVERLAY,
     "toggle_click_effects": CommandId.TOGGLE_CLICK_EFFECTS,
@@ -44,7 +47,6 @@ COMMAND_MODE_COMMANDS = {
     "live_region": CommandId.LIVE_REGION,
     "live_stop_all": CommandId.LIVE_STOP_ALL,
     "fullscreen_magnifier": CommandId.FULLSCREEN_MAGNIFIER,
-    "live_magnifier": CommandId.LIVE_MAGNIFIER,
     "open_settings": CommandId.OPEN_SETTINGS,
     "toggle_pause": CommandId.TOGGLE_PAUSE,
 }
@@ -65,7 +67,7 @@ COMMAND_MODE_GROUPS = (
     ),
     (
         "command_mode.group.windows",
-        ("pin_region", "pin_last_capture", "live_region", "live_stop_all", "fullscreen_magnifier", "live_magnifier"),
+        ("pin_region", "pin_last_capture", "live_region", "live_stop_all", "fullscreen_magnifier"),
     ),
     ("command_mode.group.settings", ("open_settings",)),
 )
@@ -195,9 +197,12 @@ class CommandModeService(Service):
             self._deactivate()
             return
         command = self._command_for_vk(vk_code)
+        _LOGGER.info("Command mode key vk=%s resolved to command=%s", vk_code, command)
         self._deactivate()
         if command is not None:
-            self.dispatcher.dispatch(command)
+            result = self.dispatcher.dispatch(command)
+            if result.error:
+                _LOGGER.warning("Command %s failed: %s", command, result.error)
 
     def _command_for_vk(self, vk_code: int) -> CommandId | None:
         for name, text in self.settings.keys.items():

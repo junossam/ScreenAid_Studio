@@ -24,22 +24,23 @@ ScreenAid Studio cannot be released while any blocker below is unresolved.
 Run:
 
 ```powershell
-python tools\quality_gate.py
+python -m unittest discover -s tests
+python -m compileall .
 ```
 
 Required checks:
 
-- Forbidden source pattern scan.
 - Unit and integration-style tests with `unittest`.
 - Python bytecode compilation with `compileall`.
 
-Optional full gate:
+Optional checks, when those modules are installed:
 
 ```powershell
-python tools\quality_gate.py --full
+ruff check .
+mypy .
 ```
 
-`--full` also runs `ruff` and `mypy` when those modules are installed. Missing optional modules are reported as skipped, not as release approval.
+Missing optional modules are reported as skipped, not as release approval.
 
 ## Manual Release Checklist
 
@@ -52,7 +53,6 @@ Feature:
 - [ ] Pinned window
 - [ ] Live region window
 - [ ] Current-screen fullscreen magnifier
-- [ ] Windows live fullscreen magnifier
 - [ ] Tray
 - [ ] Hotkeys and command mode
 - [ ] Settings
@@ -71,7 +71,6 @@ Environment:
 - [ ] Portrait monitor
 - [ ] Remote Desktop
 - [ ] Portable EXE on a machine without Python
-- [ ] Windows live fullscreen magnifier input behavior with current UIAccess packaging
 
 Distribution:
 

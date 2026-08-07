@@ -98,7 +98,6 @@ class AppController:
         self.dispatcher.register(CommandId.LIVE_REGION, lambda: self._publish_when_active("live.region"))
         self.dispatcher.register(CommandId.LIVE_STOP_ALL, lambda: self.bus.publish("live.stop_all"))
         self.dispatcher.register(CommandId.FULLSCREEN_MAGNIFIER, lambda: self._publish_when_active("magnifier.fullscreen.toggle"))
-        self.dispatcher.register(CommandId.LIVE_MAGNIFIER, lambda: self._publish_when_active("magnifier.live.toggle"))
 
     def _toggle_overlay(self) -> None:
         if self.container.overlay.isVisible():

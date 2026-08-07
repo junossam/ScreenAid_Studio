@@ -55,7 +55,12 @@ class ServiceContainer:
         capture = CaptureManager(settings=settings, bus=event_bus, base_dir=base_dir)
         pinned = PinnedWindowManager(settings=settings, bus=event_bus)
         live_view = LiveViewManager(settings=settings, bus=event_bus)
-        magnifier = MagnifierWindow(settings=settings.magnifier, drawing_settings=settings.drawing, bus=event_bus)
+        magnifier = MagnifierWindow(
+            settings=settings.magnifier,
+            drawing_settings=settings.drawing,
+            eraser_settings=settings.eraser,
+            bus=event_bus,
+        )
         mouse = GlobalMouseHook(bus=event_bus)
         hotkeys = HotkeyManager(dispatcher=dispatcher, hotkeys=settings.hotkeys, bus=event_bus)
         command_mode = CommandModeService(settings.command_mode, dispatcher=dispatcher, bus=event_bus)

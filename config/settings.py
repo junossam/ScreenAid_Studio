@@ -131,12 +131,6 @@ class LiveViewSettings:
     default_fps: int
     min_fps: int
     max_fps: int
-    max_queue_size: int
-
-
-@dataclass(frozen=True)
-class StartupSettings:
-    enabled: bool
 
 
 @dataclass(frozen=True)
@@ -168,7 +162,6 @@ class MagnifierSettings:
     scale: float
     size: int
     keep_drawings_on_close: bool
-    live_scale: float
 
 
 @dataclass(frozen=True)
@@ -184,7 +177,6 @@ class Settings:
     notification: NotificationSettings
     pinned_window: PinnedWindowSettings
     live_view: LiveViewSettings
-    startup: StartupSettings
     hotkeys: HotkeySettings
     command_mode: CommandModeSettings
     region_selection: RegionSelectionSettings
@@ -312,10 +304,6 @@ class Settings:
                 default_fps=min(30, max(1, parser.getint("live_view", "default_fps", fallback=10))),
                 min_fps=min(30, max(1, parser.getint("live_view", "min_fps", fallback=1))),
                 max_fps=min(30, max(1, parser.getint("live_view", "max_fps", fallback=30))),
-                max_queue_size=max(1, parser.getint("live_view", "max_queue_size", fallback=1)),
-            ),
-            startup=StartupSettings(
-                enabled=parser.getboolean("startup", "enabled", fallback=False),
             ),
             hotkeys=HotkeySettings(
                 values={
@@ -348,7 +336,6 @@ class Settings:
                     "live_region": parser.get("command_mode", "live_region", fallback="G"),
                     "live_stop_all": parser.get("command_mode", "live_stop_all", fallback="X"),
                     "fullscreen_magnifier": parser.get("command_mode", "fullscreen_magnifier", fallback="F"),
-                    "live_magnifier": parser.get("command_mode", "live_magnifier", fallback="J"),
                     "open_settings": parser.get("command_mode", "open_settings", fallback="S"),
                     "toggle_pause": parser.get("command_mode", "toggle_pause", fallback="Space"),
                 },
@@ -369,6 +356,5 @@ class Settings:
                 scale=parser.getfloat("magnifier", "scale", fallback=2.0),
                 size=parser.getint("magnifier", "size", fallback=260),
                 keep_drawings_on_close=parser.getboolean("magnifier", "keep_drawings_on_close", fallback=False),
-                live_scale=parser.getfloat("magnifier", "live_scale", fallback=2.0),
             ),
         )

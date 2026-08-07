@@ -34,7 +34,6 @@
         <tr><td>창</td><td><kbd>G</kbd></td><td>실시간 영역 선택</td></tr>
         <tr><td>창</td><td><kbd>X</kbd></td><td>실시간 화면 모두 닫기</td></tr>
         <tr><td>확대</td><td><kbd>F</kbd></td><td>현재 화면 확대</td></tr>
-        <tr><td>확대</td><td><kbd>J</kbd></td><td>실시간 전체 화면 확대</td></tr>
         <tr><td>설정</td><td><kbd>S</kbd></td><td>설정창 열기</td></tr>
       </tbody>
     </table>
@@ -76,10 +75,6 @@
     <h2>현재 화면 확대</h2>
     <p>명령 모드에서 <kbd>F</kbd>를 누르면 현재 화면을 마우스 위치 기준으로 부드럽게 확대합니다. 확대 상태에서 마우스를 움직이면 확대 중심이 따라오고, 마우스 휠로 추가 확대/축소할 수 있습니다. <kbd>Esc</kbd>를 누르면 축소되며 원래 화면으로 돌아갑니다.</p>
     <p>확대 중 <kbd>D</kbd>를 누르면 화면이 고정되고 확대 화면 위에 그릴 수 있습니다. 다시 <kbd>D</kbd>를 눌러 그리기를 끝내면 마우스 위치를 기준으로 다시 확대 화면이 따라옵니다. 속성에서 확대 주석을 종료 시 지울지, 원래 화면 좌표에 남길지 선택할 수 있습니다.</p>
-
-    <h2>실시간 전체 화면 확대</h2>
-    <p>명령 모드에서 <kbd>J</kbd>를 누르면 Windows Magnification API 기반의 실시간 전체 화면 확대가 실행됩니다. 이 기능은 캡처 창을 따로 띄우는 방식이 아니라 Windows의 전체 화면 확대 기능을 사용합니다.</p>
-    <p class="note">확대된 화면에서 클릭 위치를 실제 원본 화면 위치로 정확히 연결하는 기능은 Windows의 <strong>UIAccess</strong> 권한 상태에 영향을 받을 수 있습니다. Python으로 직접 실행할 때 동작하더라도, 포터블 EXE를 다른 PC에서 실행할 때는 환경에 따라 입력 연결이 제한될 수 있습니다.</p>
   </main>
   <footer><div class="shell">ScreenAid Studio 0.2.1.2</div></footer>
 </body>

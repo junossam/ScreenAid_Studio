@@ -34,7 +34,7 @@ stage. Manual Windows results must be filled during release verification.
 | OPS-SINGLE-001 | Prevent duplicate running instances | `core.single_instance`, `app` | RV-SINGLE-001 | manual smoke |
 | NFR-HOOK-001 | Keep hook callbacks lightweight and avoid direct UI calls | `mouse.hook` | RV-HOOK-001 | code reviewed |
 | NFR-LIFE-001 | Unsubscribe feature event handlers during stop | `drawing.controller`, `capture.manager`, `tray.tray_icon` | RT-LIFE-001 | code reviewed |
-| QA-GATE-001 | Run repeatable quality checks before release | `tools.quality_gate` | QA-GATE-001 | automated |
+| QA-GATE-001 | Run repeatable quality checks before release | `unittest discover`, `compileall` | QA-GATE-001 | automated |
 
 ## Current Gap Summary
 

@@ -238,12 +238,10 @@ def build_live_tab(dialog) -> QWidget:
     dialog.live_fps = dialog._spin(1, 30)
     dialog.live_min_fps = dialog._spin(1, 30)
     dialog.live_max_fps = dialog._spin(1, 30)
-    dialog.live_queue_size = dialog._spin(1, 1)
     layout.addRow(tr("settings.enable_live_view"), dialog.live_enabled)
     layout.addRow(tr("settings.default_fps"), dialog.live_fps)
     layout.addRow(tr("settings.min_fps"), dialog.live_min_fps)
     layout.addRow(tr("settings.max_fps"), dialog.live_max_fps)
-    layout.addRow(tr("settings.live_queue_size"), dialog.live_queue_size)
     return widget
 
 
@@ -253,15 +251,9 @@ def build_magnifier_tab(dialog) -> QWidget:
     dialog.magnifier_enabled = QCheckBox()
     dialog.magnifier_scale = dialog._double_spin(1.1, 5.0, 0.1)
     dialog.magnifier_keep_drawings = QCheckBox()
-    dialog.magnifier_live_scale = dialog._double_spin(1.1, 5.0, 0.1)
-    description = QLabel(tr("settings.magnifier_live_description"))
-    description.setWordWrap(True)
-    description.setStyleSheet("QLabel { color: #555; padding-bottom: 6px; }")
-    layout.addRow(description)
     layout.addRow(tr("settings.enable_magnifier"), dialog.magnifier_enabled)
     layout.addRow(tr("settings.magnifier_scale"), dialog.magnifier_scale)
     layout.addRow(tr("settings.magnifier_keep_drawings"), dialog.magnifier_keep_drawings)
-    layout.addRow(tr("settings.magnifier_live_scale"), dialog.magnifier_live_scale)
     return widget
 
 

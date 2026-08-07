@@ -44,6 +44,7 @@ class PinnedWindow(QWidget):
         self._renderer = ShapeRenderer()
         self._tool: DrawingTool | None = None
         self._preview: Shape | None = None
+        self._erasing = False
         self._drag_pos: QPoint | None = None
         self._setup_window()
         self._toolbar = AnnotationToolbar(
@@ -74,6 +75,10 @@ class PinnedWindow(QWidget):
         self.setWindowFlag(Qt.WindowType.Tool, True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setMinimumSize(80, 60)
+        # Without this, close() only hides the window - it never fires
+        # `destroyed`, so PinnedWindowManager never removes it from its
+        # window list.
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         self.resize(self._scaled_size())
         self._apply_click_through()
 
@@ -109,9 +114,8 @@ class PinnedWindow(QWidget):
                     self._preview = self._tool.preview()
                     self.update()
                 else:
-                    dirty = self._document.erase_at(self._pointer_event(event).position)
-                    self._sync_toolbar_state()
-                    self.update(self._image_rect_to_window(dirty) if not dirty.isNull() else self.rect())
+                    self._erasing = True
+                    self._erase_at(self._pointer_event(event).position)
             else:
                 self._tool = create_tool(self._active_drawing_settings())
                 self._tool.pointer_down(self._pointer_event(event))
@@ -126,6 +130,10 @@ class PinnedWindow(QWidget):
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event) -> None:
+        if self._annotation_mode and self._erasing and event.buttons() & Qt.MouseButton.LeftButton:
+            self._erase_at(self._pointer_event(event).position)
+            event.accept()
+            return
         if self._annotation_mode and self._tool is not None and event.buttons() & Qt.MouseButton.LeftButton:
             self._tool.pointer_move(self._pointer_event(event))
             self._preview = self._tool.preview()
@@ -139,6 +147,10 @@ class PinnedWindow(QWidget):
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event) -> None:
+        if self._annotation_mode and self._erasing and event.button() == Qt.MouseButton.LeftButton:
+            self._erasing = False
+            event.accept()
+            return
         if self._annotation_mode and self._tool is not None and event.button() == Qt.MouseButton.LeftButton:
             shape = self._tool.pointer_up(self._pointer_event(event))
             self._tool = None
@@ -151,6 +163,11 @@ class PinnedWindow(QWidget):
             return
         self._drag_pos = None
         super().mouseReleaseEvent(event)
+
+    def _erase_at(self, position) -> None:
+        dirty = self._document.erase_at(position)
+        self._sync_toolbar_state()
+        self.update(self._image_rect_to_window(dirty) if not dirty.isNull() else self.rect())
 
     def wheelEvent(self, event) -> None:
         self._activate_for_keyboard()
@@ -222,10 +239,12 @@ class PinnedWindow(QWidget):
 
     def set_annotation_mode(self, enabled: bool) -> None:
         self._annotation_mode = enabled and not self._click_through
-        if not self._annotation_mode and self._tool is not None:
-            self._tool.cancel()
-            self._tool = None
-            self._preview = None
+        if not self._annotation_mode:
+            self._erasing = False
+            if self._tool is not None:
+                self._tool.cancel()
+                self._tool = None
+                self._preview = None
         self._toolbar.set_visible(self._annotation_mode)
         if self._annotation_mode:
             self._position_toolbar()
@@ -234,6 +253,7 @@ class PinnedWindow(QWidget):
 
     def set_annotation_tool(self, tool: str) -> None:
         self._current_tool = tool
+        self._erasing = False
         if self._tool is not None:
             self._tool.cancel()
             self._tool = None
@@ -365,16 +385,16 @@ class PinnedWindow(QWidget):
         )
 
     def _active_drawing_settings(self) -> DrawingSettings:
+        width = self._current_width
+        if self._current_tool == "eraser" and self._eraser_settings.mode == "pixel":
+            width = max(1, self._eraser_settings.size)
         return replace(
             self._drawing_settings,
             default_tool=self._current_tool,
             color=self._current_color,
-            width=self._current_width,
+            width=width,
             line_style=self._current_line_style,
         )
-        if self._current_tool == "eraser" and self._eraser_settings.mode == "pixel":
-            return replace(settings, width=max(1, self._eraser_settings.size))
-        return settings
 
     def _position_toolbar(self) -> None:
         if self._toolbar_user_positioned:

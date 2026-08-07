@@ -184,6 +184,11 @@ class LiveViewWindow(QWidget):
         self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
         self.setWindowFlag(Qt.WindowType.Tool, True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        # Without this, close() (Esc, context menu, etc.) only hides the
+        # window - it never fires `destroyed`, so LiveViewManager never
+        # removes it from its window list and a pending start-up timer can
+        # restart a window the user already closed.
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         self.resize(self._scaled_size())
         self._apply_click_through()
 
@@ -233,19 +238,26 @@ class LiveViewWindow(QWidget):
         if self._worker_thread is None or self._worker is None:
             self._capture_in_flight = False
             return
+        worker_thread = self._worker_thread
+        worker = self._worker
         for signal, slot in (
-            (self._capture_requested, self._worker.capture),
-            (self._worker.frame_ready, self._frame_ready),
-            (self._worker.failed, self._capture_failed),
-            (self._worker.finished, self._capture_finished),
+            (self._capture_requested, worker.capture),
+            (worker.frame_ready, self._frame_ready),
+            (worker.failed, self._capture_failed),
+            (worker.finished, self._capture_finished),
         ):
             try:
                 signal.disconnect(slot)
             except (RuntimeError, TypeError):
                 pass
-        self._worker_thread.quit()
-        self._worker_thread.wait(1000)
-        self._worker_thread.deleteLater()
+        # If a capture is still in flight, let the thread finish and delete
+        # itself once its `finished` signal actually fires. Forcing
+        # deleteLater() on a QThread that hasn't stopped yet is unsafe, and
+        # terminate() would abort the in-flight GDI capture without running
+        # its handle cleanup, leaking GDI resources.
+        worker_thread.finished.connect(worker_thread.deleteLater)
+        worker_thread.quit()
+        worker_thread.wait(1000)
         self._worker_thread = None
         self._worker = None
         self._capture_in_flight = False

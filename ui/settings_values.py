@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from core.hotkeys import DEFAULT_HOTKEYS
+from PySide6.QtWidgets import QMessageBox
+
+from core.command_mode import parse_command_key
+from core.hotkeys import DEFAULT_HOTKEYS, parse_hotkey
+from core.localization import tr
 from ui.settings_sections import COMMAND_KEY_DEFAULTS, combo_data, set_combo_data
 
 
@@ -135,11 +139,9 @@ def _load_windows(dialog) -> None:
     dialog.live_fps.setValue(dialog._int("live_view", "default_fps", 10))
     dialog.live_min_fps.setValue(dialog._int("live_view", "min_fps", 1))
     dialog.live_max_fps.setValue(dialog._int("live_view", "max_fps", 30))
-    dialog.live_queue_size.setValue(dialog._int("live_view", "max_queue_size", 1))
     dialog.magnifier_enabled.setChecked(dialog._bool("magnifier", "enabled", True))
     dialog.magnifier_scale.setValue(dialog._float("magnifier", "scale", 2.0))
     dialog.magnifier_keep_drawings.setChecked(dialog._bool("magnifier", "keep_drawings_on_close", False))
-    dialog.magnifier_live_scale.setValue(dialog._float("magnifier", "live_scale", 2.0))
 
 
 def _load_region_and_keys(dialog) -> None:
@@ -266,13 +268,23 @@ def _save_windows(dialog) -> None:
     dialog._set("pinned_window", "click_through", dialog.pinned_click_through.isChecked())
     dialog._set("live_view", "enabled", dialog.live_enabled.isChecked())
     dialog._set("live_view", "default_fps", dialog.live_fps.value())
-    dialog._set("live_view", "min_fps", dialog.live_min_fps.value())
-    dialog._set("live_view", "max_fps", dialog.live_max_fps.value())
-    dialog._set("live_view", "max_queue_size", 1)
+    min_fps, max_fps = _resolve_fps_range(dialog)
+    dialog._set("live_view", "min_fps", min_fps)
+    dialog._set("live_view", "max_fps", max_fps)
     dialog._set("magnifier", "enabled", dialog.magnifier_enabled.isChecked())
     dialog._set("magnifier", "scale", dialog.magnifier_scale.value())
     dialog._set("magnifier", "keep_drawings_on_close", dialog.magnifier_keep_drawings.isChecked())
-    dialog._set("magnifier", "live_scale", dialog.magnifier_live_scale.value())
+
+
+def _resolve_fps_range(dialog) -> tuple[int, int]:
+    min_fps = dialog.live_min_fps.value()
+    max_fps = dialog.live_max_fps.value()
+    if min_fps > max_fps:
+        min_fps, max_fps = max_fps, min_fps
+        dialog.live_min_fps.setValue(min_fps)
+        dialog.live_max_fps.setValue(max_fps)
+        QMessageBox.warning(dialog, tr("settings.title"), tr("settings.fps_range_swapped"))
+    return min_fps, max_fps
 
 
 def _save_region_and_keys(dialog) -> None:
@@ -282,10 +294,68 @@ def _save_region_and_keys(dialog) -> None:
     dialog._set("region_selection", "show_coordinates", dialog.region_show_coordinates.isChecked())
     dialog._set("region_selection", "minimum_width", dialog.region_min_width.value())
     dialog._set("region_selection", "minimum_height", dialog.region_min_height.value())
-    for name, field in dialog.hotkey_fields.items():
-        dialog._set("hotkeys", name, field.text().strip())
+    invalid_hotkeys = _save_hotkey_fields(dialog)
     dialog._set("command_mode", "enabled", True)
     dialog._set("command_mode", "show_hint", dialog.command_mode_show_hint.isChecked())
     dialog._set("command_mode", "timeout_ms", dialog.command_mode_timeout.value())
+    invalid_command_keys, duplicate_command_keys = _save_command_key_fields(dialog)
+    _warn_about_rejected_keys(dialog, invalid_hotkeys, invalid_command_keys, duplicate_command_keys)
+
+
+def _save_hotkey_fields(dialog) -> list[str]:
+    invalid = []
+    for name, field in dialog.hotkey_fields.items():
+        text = field.text().strip()
+        if parse_hotkey(text) is None:
+            invalid.append(name)
+            text = dialog.parser.get("hotkeys", name, fallback=DEFAULT_HOTKEYS[name])
+            field.setText(text)
+        dialog._set("hotkeys", name, text)
+    return invalid
+
+
+def _save_command_key_fields(dialog) -> tuple[list[str], list[str]]:
+    entered = {name: field.text().strip() for name, field in dialog.command_key_fields.items()}
+    parsed_vk: dict[str, int] = {}
+    invalid: list[str] = []
+    for name, text in entered.items():
+        vk = parse_command_key(text)
+        if vk is None:
+            invalid.append(name)
+        else:
+            parsed_vk[name] = vk
+
+    vk_counts: dict[int, int] = {}
+    for vk in parsed_vk.values():
+        vk_counts[vk] = vk_counts.get(vk, 0) + 1
+    duplicates = [name for name, vk in parsed_vk.items() if vk_counts[vk] > 1]
+
     for name, field in dialog.command_key_fields.items():
-        dialog._set("command_mode", name, field.text().strip())
+        if name in invalid or name in duplicates:
+            text = dialog.parser.get("command_mode", name, fallback=COMMAND_KEY_DEFAULTS[name])
+            field.setText(text)
+        else:
+            text = entered[name]
+        dialog._set("command_mode", name, text)
+    return invalid, duplicates
+
+
+def _warn_about_rejected_keys(
+    dialog,
+    invalid_hotkeys: list[str],
+    invalid_command_keys: list[str],
+    duplicate_command_keys: list[str],
+) -> None:
+    if not (invalid_hotkeys or invalid_command_keys or duplicate_command_keys):
+        return
+    lines = []
+    if invalid_hotkeys:
+        names = ", ".join(tr(f"hotkey.{name}") for name in invalid_hotkeys)
+        lines.append(f"{tr('settings.invalid_hotkeys')}: {names}")
+    if invalid_command_keys:
+        names = ", ".join(tr(f"hotkey.{name}") for name in invalid_command_keys)
+        lines.append(f"{tr('settings.invalid_command_keys')}: {names}")
+    if duplicate_command_keys:
+        names = ", ".join(tr(f"hotkey.{name}") for name in duplicate_command_keys)
+        lines.append(f"{tr('settings.duplicate_command_keys')}: {names}")
+    QMessageBox.warning(dialog, tr("settings.title"), "\n".join(lines))

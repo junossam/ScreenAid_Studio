@@ -89,6 +89,15 @@ class MouseEventTests(unittest.TestCase):
         hook._blocking_suspended = True
         self.assertFalse(hook._should_emit(MouseEvent(MouseEventType.LEFT_DOWN, 200, 200, 40)))
 
+    def test_release_over_excluded_widget_still_ends_a_drag_started_outside(self) -> None:
+        hook = GlobalMouseHook(EventBus())
+        hook._input_exclusions["toolbar"] = (0, 0, 100, 100)
+
+        self.assertTrue(hook._should_emit(MouseEvent(MouseEventType.LEFT_DOWN, 200, 200, 30)))
+        self.assertFalse(hook._should_emit(MouseEvent(MouseEventType.MOVE, 50, 50, 31)))
+        self.assertTrue(hook._should_emit(MouseEvent(MouseEventType.LEFT_UP, 50, 50, 32)))
+        self.assertFalse(hook._left_pressed)
+
 
 if __name__ == "__main__":
     unittest.main()

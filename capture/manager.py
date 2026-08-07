@@ -88,6 +88,7 @@ class CaptureManager(Service):
         if self._selection:
             self._selection.close()
         self._selection = RegionSelectionOverlay(
+            self.bus,
             self.settings.region_selection,
             self._region_selected,
         )

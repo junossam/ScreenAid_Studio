@@ -39,3 +39,6 @@ cache/
 *.log
 *.tmp
 *.bak
+
+# Etc
+.ProductPage/

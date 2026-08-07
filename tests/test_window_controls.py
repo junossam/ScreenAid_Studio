@@ -94,7 +94,7 @@ class WindowControlsTest(unittest.TestCase):
         self.assertIn('"overlay.input_mode.changed"', hook)
         self.assertIn("_should_block", hook)
         self.assertIn("return 1", hook)
-        self.assertIn("window_from_point(event.x, event.y) == self._overlay_hwnd", hook)
+        self.assertIn("window_from_point(event.x, event.y) in self._overlay_hwnds", hook)
         self.assertIn("mouse.input_exclusion.changed", hook)
         self.assertIn("mouse.blocking.suspended", hook)
         self.assertIn("_is_inside_input_exclusion", hook)

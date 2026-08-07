@@ -3,18 +3,18 @@ from __future__ import annotations
 from dataclasses import replace
 
 from PySide6.QtCore import QDateTime, QEasingCurve, QPoint, QPointF, QRect, QRectF, QTimer, Qt
-from PySide6.QtGui import QColor, QCursor, QGuiApplication, QImage, QKeySequence, QPainter, QShortcut
+from PySide6.QtGui import QColor, QCursor, QGuiApplication, QImage, QKeySequence, QPainter, QPainterPathStroker, QShortcut
 from PySide6.QtWidgets import QWidget
 
-from config.settings import DrawingSettings, MagnifierSettings
+from config.settings import DrawingSettings, EraserSettings, MagnifierSettings
 from core.event_bus import Event, EventBus, Subscription
 from core.service import Service
 from drawing.document import DrawingDocument
 from drawing.events import PointerEvent
+from drawing.geometry import curve_path
 from drawing.renderer import ShapeRenderer
-from drawing.shapes import Shape
+from drawing.shapes import Shape, ShapeType
 from drawing.tools import DrawingTool, create_tool
-from magnifier.windows_api import WindowsLiveMagnifier
 
 
 class FullscreenMagnifierWindow(QWidget):
@@ -24,10 +24,17 @@ class FullscreenMagnifierWindow(QWidget):
     MAX_SCALE = 5.0
     WHEEL_SCALE_STEP = 0.2
 
-    def __init__(self, settings: MagnifierSettings, drawing_settings: DrawingSettings, bus: EventBus) -> None:
+    def __init__(
+        self,
+        settings: MagnifierSettings,
+        drawing_settings: DrawingSettings,
+        eraser_settings: EraserSettings,
+        bus: EventBus,
+    ) -> None:
         super().__init__()
         self.settings = settings
         self.drawing_settings = drawing_settings
+        self.eraser_settings = eraser_settings
         self.bus = bus
         self._screen_image = QImage()
         self._screen_rect = QRect()
@@ -37,12 +44,13 @@ class FullscreenMagnifierWindow(QWidget):
         self._closing = False
         self._drawing_active = False
         self._drawing = False
+        self._erasing = False
         self._drawing_cursor = QPointF()
         self._anchor_before_drawing = QPoint()
         self._ignore_follow_until_cursor_moves: QPoint | None = None
         self._elapsed_ms = 0
         self._document = DrawingDocument()
-        self._tool: DrawingTool = create_tool(drawing_settings)
+        self._tool: DrawingTool = create_tool(self._effective_drawing_settings())
         self._renderer = ShapeRenderer()
         self._timer = QTimer(self)
         self._timer.setInterval(self.FRAME_MS)
@@ -113,6 +121,12 @@ class FullscreenMagnifierWindow(QWidget):
 
     def mousePressEvent(self, event) -> None:
         if self._drawing_active and event.button() == Qt.MouseButton.LeftButton:
+            if self.drawing_settings.default_tool == "eraser" and self.eraser_settings.mode != "pixel":
+                self._erasing = True
+                self._erase_at(event.position())
+                self._raise_drawing_toolbar()
+                event.accept()
+                return
             self._drawing = True
             self._drawing_cursor = event.position()
             self._tool.pointer_down(self._pointer_event(event.position(), event))
@@ -123,6 +137,11 @@ class FullscreenMagnifierWindow(QWidget):
         event.accept()
 
     def mouseMoveEvent(self, event) -> None:
+        if self._erasing:
+            self._erase_at(event.position())
+            self._raise_drawing_toolbar()
+            event.accept()
+            return
         if self._drawing:
             self._drawing_cursor = event.position()
             self._tool.pointer_move(self._pointer_event(event.position(), event))
@@ -140,6 +159,11 @@ class FullscreenMagnifierWindow(QWidget):
         event.accept()
 
     def mouseReleaseEvent(self, event) -> None:
+        if self._erasing and event.button() == Qt.MouseButton.LeftButton:
+            self._erasing = False
+            self._raise_drawing_toolbar()
+            event.accept()
+            return
         if self._drawing and event.button() == Qt.MouseButton.LeftButton:
             shape = self._tool.pointer_up(self._pointer_event(event.position(), event))
             self._drawing = False
@@ -150,6 +174,11 @@ class FullscreenMagnifierWindow(QWidget):
             event.accept()
             return
         event.accept()
+
+    def _erase_at(self, window_point: QPointF) -> None:
+        dirty = self._document.erase_at(self._window_to_screen_point(window_point))
+        if not dirty.isNull():
+            self.update()
 
     def wheelEvent(self, event) -> None:
         if self._closing:
@@ -219,6 +248,7 @@ class FullscreenMagnifierWindow(QWidget):
             self._raise_drawing_toolbar()
         if not active:
             self._drawing = False
+            self._erasing = False
             self._tool.cancel()
             self._anchor = QPoint(self._anchor_before_drawing)
             self._ignore_follow_until_cursor_moves = QCursor.pos()
@@ -235,7 +265,17 @@ class FullscreenMagnifierWindow(QWidget):
     def set_drawing_settings(self, settings: DrawingSettings) -> None:
         self.drawing_settings = settings
         if not self._drawing:
-            self._tool = create_tool(settings)
+            self._tool = create_tool(self._effective_drawing_settings())
+
+    def set_eraser_settings(self, eraser_settings: EraserSettings) -> None:
+        self.eraser_settings = eraser_settings
+        if not self._drawing:
+            self._tool = create_tool(self._effective_drawing_settings())
+
+    def _effective_drawing_settings(self) -> DrawingSettings:
+        if self.drawing_settings.default_tool == "eraser" and self.eraser_settings.mode == "pixel":
+            return replace(self.drawing_settings, width=max(1, self.eraser_settings.size))
+        return self.drawing_settings
 
     def _grab_screen_image(self) -> QImage:
         screen = QGuiApplication.screenAt(self._screen_rect.center()) or QGuiApplication.primaryScreen()
@@ -264,8 +304,29 @@ class FullscreenMagnifierWindow(QWidget):
 
     def _paint_magnified_shape(self, painter: QPainter, shape: Shape, source: QRectF) -> None:
         transformed = self._shape_to_window(shape, source)
-        if transformed is not None:
-            self._renderer.paint_shape(painter, transformed)
+        if transformed is None:
+            return
+        if transformed.shape_type == ShapeType.ERASER:
+            self._paint_magnified_eraser(painter, transformed, source)
+            return
+        self._renderer.paint_shape(painter, transformed)
+
+    def _paint_magnified_eraser(self, painter: QPainter, transformed: Shape, source: QRectF) -> None:
+        # The magnifier window is opaque and paints a static screenshot, not
+        # the live desktop, so QPainter.CompositionMode_Clear (used for the
+        # eraser elsewhere) has nothing meaningful to reveal and just paints
+        # black. Instead, re-blit the screenshot clipped to the erased
+        # stroke area so erasing reveals the magnified image underneath.
+        if len(transformed.points) < 2:
+            return
+        stroker = QPainterPathStroker()
+        stroker.setWidth(max(1, transformed.stroke_width))
+        stroker.setCapStyle(Qt.PenCapStyle.RoundCap)
+        stroker.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        painter.save()
+        painter.setClipPath(stroker.createStroke(curve_path(transformed.points)))
+        painter.drawImage(QRectF(self.rect()), self._screen_image, source)
+        painter.restore()
 
     def _paint_drawing_cursor(self, painter: QPainter) -> None:
         painter.save()
@@ -316,6 +377,7 @@ class FullscreenMagnifierWindow(QWidget):
         self._document.clear()
         self._tool.cancel()
         self._drawing = False
+        self._erasing = False
         self._drawing_active = False
         if was_drawing_active:
             self.bus.publish("drawing.mode.changed", pass_through=True, scope="magnifier")
@@ -355,23 +417,27 @@ class FullscreenMagnifierWindow(QWidget):
 
 
 class MagnifierWindow(Service):
-    def __init__(self, settings: MagnifierSettings, drawing_settings: DrawingSettings, bus: EventBus) -> None:
+    def __init__(
+        self,
+        settings: MagnifierSettings,
+        drawing_settings: DrawingSettings,
+        eraser_settings: EraserSettings,
+        bus: EventBus,
+    ) -> None:
         self.settings = settings
         self.bus = bus
         self._drawing_settings = drawing_settings
+        self._eraser_settings = eraser_settings
         self._window: FullscreenMagnifierWindow | None = None
-        self._live_magnifier = WindowsLiveMagnifier(settings)
-        self._live_magnifier.failed.connect(self._live_failed)
         self._subscriptions: list[Subscription] = []
 
     def start(self) -> None:
         if self._subscriptions:
             return
         if self._window is None:
-            self._window = FullscreenMagnifierWindow(self.settings, self._drawing_settings, self.bus)
+            self._window = FullscreenMagnifierWindow(self.settings, self._drawing_settings, self._eraser_settings, self.bus)
         self._subscriptions = [
             self.bus.subscribe("magnifier.fullscreen.toggle", self._toggle),
-            self.bus.subscribe("magnifier.live.toggle", self._toggle_live),
             self.bus.subscribe("magnifier.close", self._close),
             self.bus.subscribe("magnifier.drawing.toggle", self._toggle_drawing),
             self.bus.subscribe("drawing.mode.changed", self._drawing_mode_changed),
@@ -385,7 +451,6 @@ class MagnifierWindow(Service):
         for subscription in self._subscriptions:
             self.bus.unsubscribe(subscription)
         self._subscriptions.clear()
-        self._live_magnifier.stop()
         if self._window is not None:
             self._window.close()
 
@@ -395,25 +460,14 @@ class MagnifierWindow(Service):
     def _toggle(self, _event: Event) -> None:
         if not self.settings.enabled:
             return
-        if self._live_magnifier.is_active():
-            self._live_magnifier.stop()
         if self._window is None:
             return
         if self._window.isVisible():
             self._window.close_with_animation()
             return
-        self._window.open_at_cursor(live=False)
-
-    def _toggle_live(self, _event: Event) -> None:
-        if not self.settings.enabled:
-            return
-        if self._window is not None and self._window.isVisible():
-            self._window.close_with_animation()
-        self._live_magnifier.toggle()
+        self._window.open_at_cursor()
 
     def _close(self, _event: Event) -> None:
-        if self._live_magnifier.is_active():
-            self._live_magnifier.stop()
         if self._window is not None and self._window.isVisible():
             self._window.close_with_animation()
 
@@ -428,14 +482,15 @@ class MagnifierWindow(Service):
         if settings is not None:
             self.settings = settings.magnifier
             self._drawing_settings = settings.drawing
-            self._live_magnifier.update_settings(self.settings)
+            self._eraser_settings = settings.eraser
             if self._window is not None:
                 self._window.settings = self.settings
                 self._window.set_drawing_settings(settings.drawing)
+                self._window.set_eraser_settings(settings.eraser)
+            if not self.settings.enabled and self._window is not None and self._window.isVisible():
+                self._window.close_with_animation()
 
     def _pause_changed(self, event: Event) -> None:
-        if bool(event.payload.get("paused", False)) and self._live_magnifier.is_active():
-            self._live_magnifier.stop()
         if self._window is not None and bool(event.payload.get("paused", False)) and self._window.isVisible():
             self._window.close_with_animation()
 
@@ -460,6 +515,3 @@ class MagnifierWindow(Service):
         if isinstance(color, str) and isinstance(width, int) and isinstance(line_style, str):
             self._drawing_settings = replace(self._drawing_settings, color=color, width=width, line_style=line_style)
             self._window.set_drawing_settings(self._drawing_settings)
-
-    def _live_failed(self, error: str) -> None:
-        self.bus.publish("live.failed", error=error)

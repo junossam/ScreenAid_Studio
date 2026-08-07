@@ -27,13 +27,25 @@ class ImageSaveService:
         if not directory.is_absolute():
             directory = self.base_dir / directory
         directory.mkdir(parents=True, exist_ok=True)
-        path = directory / f"{self._filename(result)}.{self.settings.image_format.lower()}"
+        path = self._unique_path(directory, self._filename(result), self.settings.image_format.lower())
         image_format = self.settings.image_format.upper()
         if image_format == "JPG":
             image_format = "JPEG"
         ok = result.image.save(str(path), image_format, self.settings.jpeg_quality)
         if not ok:
             raise OSError(f"Failed to save capture: {path}")
+        return path
+
+    @staticmethod
+    def _unique_path(directory: Path, stem: str, extension: str) -> Path:
+        # The filename pattern only has second precision, so two captures
+        # within the same second would otherwise silently overwrite one
+        # another; append a counter instead.
+        path = directory / f"{stem}.{extension}"
+        counter = 1
+        while path.exists():
+            path = directory / f"{stem}_{counter}.{extension}"
+            counter += 1
         return path
 
     def _filename(self, result: CaptureResult) -> str:

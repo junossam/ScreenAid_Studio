@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
 CommandHandler = Callable[..., None]
+_LOGGER = logging.getLogger("ScreenAidStudio")
 
 
 @dataclass(slots=True)
@@ -28,5 +30,6 @@ class CommandDispatcher:
         try:
             handler(**payload)
         except Exception as exc:
+            _LOGGER.exception("Command handler for %s raised an exception", command_id)
             return CommandResult(command_id=command_id, handled=True, error=str(exc))
         return CommandResult(command_id=command_id, handled=True)

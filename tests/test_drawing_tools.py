@@ -155,6 +155,29 @@ class FreehandToolTests(unittest.TestCase):
         self.assertEqual(shape.stroke_width, 18)
         controller.stop()
 
+    def test_object_eraser_erases_shapes_swept_over_while_dragging(self) -> None:
+        bus = EventBus()
+        controller = DrawingController(
+            self._settings("line"),
+            EraserSettings(mode="object", size=24),
+            bus,
+        )
+        controller.start()
+
+        bus.publish("drawing.pointer.down", event=PointerEvent(QPoint(0, 0), 1))
+        bus.publish("drawing.pointer.up", event=PointerEvent(QPoint(0, 20), 2))
+        bus.publish("drawing.pointer.down", event=PointerEvent(QPoint(50, 0), 3))
+        bus.publish("drawing.pointer.up", event=PointerEvent(QPoint(50, 20), 4))
+        self.assertEqual(len(tuple(controller.document.shapes())), 2)
+
+        bus.publish("drawing.tool.select", tool="eraser")
+        bus.publish("drawing.pointer.down", event=PointerEvent(QPoint(0, 10), 5))
+        bus.publish("drawing.pointer.move", event=PointerEvent(QPoint(50, 10), 6))
+        bus.publish("drawing.pointer.up", event=PointerEvent(QPoint(50, 10), 7))
+
+        self.assertEqual(len(tuple(controller.document.shapes())), 0)
+        controller.stop()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -6,7 +6,6 @@ Run:
 
 ```powershell
 cd ScreenAssistant
-python tools\quality_gate.py
 python -m unittest discover -s tests
 python -m compileall .
 ```

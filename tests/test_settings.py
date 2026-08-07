@@ -38,7 +38,6 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings.pinned_window.default_zoom, 1.0)
         self.assertTrue(settings.live_view.enabled)
         self.assertEqual(settings.live_view.default_fps, 10)
-        self.assertFalse(settings.startup.enabled)
         self.assertEqual(settings.hotkeys.values["command_mode"], "Ctrl+Alt+A")
         self.assertEqual(settings.hotkeys.values["toggle_click_effects"], "Ctrl+Alt+E")
         self.assertNotIn("toggle_drawing", settings.hotkeys.values)

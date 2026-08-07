@@ -49,6 +49,42 @@ class SettingsManagerTests(unittest.TestCase):
             if root.exists():
                 rmtree(root)
 
+    def test_load_falls_back_to_builtin_defaults_when_defaults_file_is_missing(self) -> None:
+        root = ROOT / "tests" / ".tmp_settings_missing_defaults"
+        if root.exists():
+            rmtree(root)
+        root.mkdir()
+        try:
+            defaults = root / "does_not_exist.ini"
+            user = root / "config.ini"
+            manager = SettingsManager(SettingsPaths(defaults, user))
+
+            settings = manager.load()
+
+            self.assertFalse(user.exists())
+            self.assertEqual(settings.app.language, "ko")
+        finally:
+            if root.exists():
+                rmtree(root)
+
+    def test_load_recovers_from_corrupt_user_settings_without_defaults_file(self) -> None:
+        root = ROOT / "tests" / ".tmp_settings_corrupt_no_defaults"
+        if root.exists():
+            rmtree(root)
+        root.mkdir()
+        try:
+            defaults = root / "does_not_exist.ini"
+            user = root / "config.ini"
+            user.write_text("not a valid ini file [[[", encoding="utf-8")
+            manager = SettingsManager(SettingsPaths(defaults, user))
+
+            settings = manager.load()
+
+            self.assertEqual(settings.app.language, "ko")
+        finally:
+            if root.exists():
+                rmtree(root)
+
     def test_mirror_to_storage_mode_writes_portable_config(self) -> None:
         root = ROOT / "tests" / ".tmp_settings_storage"
         if root.exists():

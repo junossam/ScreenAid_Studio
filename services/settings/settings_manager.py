@@ -31,16 +31,27 @@ class SettingsManager:
             backup = self.paths.user_path.with_suffix(".broken.ini")
             if self.paths.user_path.exists():
                 shutil.copy2(self.paths.user_path, backup)
-            if self.paths.defaults_path.resolve() != self.paths.user_path.resolve():
-                shutil.copy2(self.paths.defaults_path, self.paths.user_path)
+            if self._restore_from_defaults():
+                return Settings.load(self.paths.user_path)
+            # No usable defaults file either - drop the unreadable user
+            # config so Settings.load() falls back to its built-in defaults
+            # instead of leaving the app permanently unable to start.
+            self.paths.user_path.unlink(missing_ok=True)
             return Settings.load(self.paths.user_path)
 
     def _ensure_user_settings(self) -> None:
         self.paths.user_path.parent.mkdir(parents=True, exist_ok=True)
         if self.paths.user_path.exists():
             return
-        if self.paths.defaults_path.resolve() != self.paths.user_path.resolve():
-            shutil.copy2(self.paths.defaults_path, self.paths.user_path)
+        self._restore_from_defaults()
+
+    def _restore_from_defaults(self) -> bool:
+        if self.paths.defaults_path.resolve() == self.paths.user_path.resolve():
+            return False
+        if not self.paths.defaults_path.exists():
+            return False
+        shutil.copy2(self.paths.defaults_path, self.paths.user_path)
+        return True
 
     def load_parser(self) -> ConfigParser:
         self._ensure_user_settings()
