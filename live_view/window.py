@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QPoint, QRect, QSize, QThread, QTimer, Qt, Signal
-from PySide6.QtGui import QAction, QColor, QFont, QImage, QKeySequence, QPainter, QShortcut
+from PySide6.QtGui import QAction, QColor, QFont, QGuiApplication, QImage, QKeySequence, QPainter, QShortcut
 from PySide6.QtWidgets import QMenu, QWidget
 
 from config.settings import LiveViewSettings
@@ -176,7 +176,7 @@ class LiveViewWindow(QWidget):
         if self._latest_image.isNull():
             self.bus.publish("pin.failed", error="No live frame is available")
             return
-        self.bus.publish("pin.image", image=self._latest_image.copy(), display_size=QSize(self.size()))
+        self.bus.publish("pin.image", image=self._latest_image.copy(), display_size=QSize(self.size()), position=self.pos())
 
     def _setup_window(self) -> None:
         self.setWindowTitle(tr("live.title", fps=self._fps))
@@ -189,8 +189,38 @@ class LiveViewWindow(QWidget):
         # removes it from its window list and a pending start-up timer can
         # restart a window the user already closed.
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
-        self.resize(self._scaled_size())
+        size = self._scaled_size()
+        self.resize(size)
+        self.move(self._non_overlapping_position(self._display_rect, size))
         self._apply_click_through()
+
+    def _non_overlapping_position(self, source_rect: QRect, size: QSize) -> QPoint:
+        # A window opened directly on top of the region it keeps re-capturing
+        # would capture itself every tick (an infinite visual feedback loop),
+        # so nudge it just outside the source region instead.
+        if not QRect(source_rect.topLeft(), size).intersects(source_rect):
+            return source_rect.topLeft()
+        screen = QGuiApplication.screenAt(source_rect.center()) or QGuiApplication.primaryScreen()
+        work_area = screen.availableGeometry() if screen is not None else QRect(source_rect.topLeft(), size)
+        gap = 12
+        candidates = (
+            QPoint(source_rect.right() + gap, source_rect.top()),
+            QPoint(source_rect.left() - size.width() - gap, source_rect.top()),
+            QPoint(source_rect.left(), source_rect.bottom() + gap),
+            QPoint(source_rect.left(), source_rect.top() - size.height() - gap),
+        )
+        for point in candidates:
+            candidate_rect = QRect(point, size)
+            if work_area.contains(candidate_rect) and not candidate_rect.intersects(source_rect):
+                return point
+        # Nothing fits cleanly next to the source region on this screen
+        # (e.g. it covers nearly the whole screen) - fall back to a diagonal
+        # offset clamped to the screen so it at least isn't a full overlap.
+        offset = QPoint(source_rect.left() + 40, source_rect.top() + 40)
+        return QPoint(
+            min(max(offset.x(), work_area.left()), max(work_area.left(), work_area.right() - size.width())),
+            min(max(offset.y(), work_area.top()), max(work_area.top(), work_area.bottom() - size.height())),
+        )
 
     def _capture_next(self) -> None:
         if not self._running or self._paused:

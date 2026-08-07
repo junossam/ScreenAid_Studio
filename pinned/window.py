@@ -26,10 +26,12 @@ class PinnedWindow(QWidget):
         drawing_settings: DrawingSettings,
         eraser_settings: EraserSettings | None = None,
         display_size: QSize | None = None,
+        position: QPoint | None = None,
     ) -> None:
         super().__init__()
         self._image = image
         self._display_size = display_size or image.size()
+        self._position = position
         self._settings = settings
         self._drawing_settings = drawing_settings
         self._eraser_settings = eraser_settings or EraserSettings(mode="object", size=24)
@@ -80,6 +82,8 @@ class PinnedWindow(QWidget):
         # window list.
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         self.resize(self._scaled_size())
+        if self._position is not None:
+            self.move(self._position)
         self._apply_click_through()
 
     def paintEvent(self, _event) -> None:

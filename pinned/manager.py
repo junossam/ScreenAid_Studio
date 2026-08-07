@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QRect, QSize, QTimer
+from PySide6.QtCore import QPoint, QRect, QSize, QTimer
 
 from capture.gdi import GdiCaptureBackend
 from capture.models import CaptureRequest, CaptureType
@@ -49,13 +49,21 @@ class PinnedWindowManager(Service):
     def _capture_completed(self, event: Event) -> None:
         self._last_result = event.payload["result"]
         if self.settings.capture.open_pinned_window:
-            self._open_image(self._last_result.image, self._display_size_for_rect(self._last_result.virtual_rect))
+            self._open_image(
+                self._last_result.image,
+                self._display_size_for_rect(self._last_result.virtual_rect),
+                self._position_for_rect(self._last_result.virtual_rect),
+            )
 
     def _pin_last_capture(self, _event: Event) -> None:
         if self._last_result is None:
             self.bus.publish("pin.failed", error="No capture result is available")
             return
-        self._open_image(self._last_result.image, self._display_size_for_rect(self._last_result.virtual_rect))
+        self._open_image(
+            self._last_result.image,
+            self._display_size_for_rect(self._last_result.virtual_rect),
+            self._position_for_rect(self._last_result.virtual_rect),
+        )
 
     def _pin_image(self, event: Event) -> None:
         image = event.payload.get("image")
@@ -63,7 +71,12 @@ class PinnedWindowManager(Service):
             self.bus.publish("pin.failed", error="No image is available")
             return
         display_size = event.payload.get("display_size")
-        self._open_image(image, display_size if isinstance(display_size, QSize) else None)
+        position = event.payload.get("position")
+        self._open_image(
+            image,
+            display_size if isinstance(display_size, QSize) else None,
+            position if isinstance(position, QPoint) else None,
+        )
 
     def _select_region(self, _event: Event) -> None:
         if not self.settings.pinned_window.enabled:
@@ -93,9 +106,9 @@ class PinnedWindowManager(Service):
         finally:
             self.bus.publish("overlay.capture_visuals.suspended", source="pinned_capture", suspended=False)
         self._last_result = result
-        self._open_image(result.image, self._display_size_for_rect(result.virtual_rect))
+        self._open_image(result.image, self._display_size_for_rect(result.virtual_rect), self._position_for_rect(result.virtual_rect))
 
-    def _open_image(self, image, display_size: QSize | None = None) -> None:
+    def _open_image(self, image, display_size: QSize | None = None, position: QPoint | None = None) -> None:
         if not self.settings.pinned_window.enabled:
             return
         window = PinnedWindow(
@@ -104,6 +117,7 @@ class PinnedWindowManager(Service):
             self.settings.drawing,
             self.settings.eraser,
             display_size=display_size,
+            position=position,
         )
         window.destroyed.connect(lambda _obj=None, item=window: self._forget(item))
         self._windows.append(window)
@@ -111,6 +125,9 @@ class PinnedWindowManager(Service):
 
     def _display_size_for_rect(self, rect: QRect) -> QSize:
         return self._coordinates.physical_to_qt_rect(rect).size()
+
+    def _position_for_rect(self, rect: QRect) -> QPoint:
+        return self._coordinates.physical_to_qt_rect(rect).topLeft()
 
     def _forget(self, window: PinnedWindow) -> None:
         if window in self._windows:
