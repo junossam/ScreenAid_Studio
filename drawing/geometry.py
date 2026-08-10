@@ -1,9 +1,19 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QRectF
+from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QPainterPath
 
 from drawing.shapes import Shape, ShapeType
+
+_PEN_STYLES = {
+    "dash": Qt.PenStyle.DashLine,
+    "dot": Qt.PenStyle.DotLine,
+    "dashdot": Qt.PenStyle.DashDotLine,
+}
+
+
+def pen_style_for_name(name: str) -> Qt.PenStyle:
+    return _PEN_STYLES.get(name, Qt.PenStyle.SolidLine)
 
 
 def curve_path(points: list) -> QPainterPath:

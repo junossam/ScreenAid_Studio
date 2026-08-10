@@ -443,6 +443,7 @@ class MagnifierWindow(Service):
             self.bus.subscribe("drawing.mode.changed", self._drawing_mode_changed),
             self.bus.subscribe("drawing.tool.changed", self._drawing_tool_changed),
             self.bus.subscribe("drawing.style.change", self._drawing_style_changed),
+            self.bus.subscribe("drawing.eraser_mode.change", self._eraser_mode_changed),
             self.bus.subscribe("settings.saved", self._settings_saved),
             self.bus.subscribe("app.pause.changed", self._pause_changed),
         ]
@@ -515,3 +516,10 @@ class MagnifierWindow(Service):
         if isinstance(color, str) and isinstance(width, int) and isinstance(line_style, str):
             self._drawing_settings = replace(self._drawing_settings, color=color, width=width, line_style=line_style)
             self._window.set_drawing_settings(self._drawing_settings)
+
+    def _eraser_mode_changed(self, event: Event) -> None:
+        mode = event.payload.get("mode")
+        if mode not in {"object", "pixel"} or self._window is None:
+            return
+        self._eraser_settings = replace(self._eraser_settings, mode=mode)
+        self._window.set_eraser_settings(self._eraser_settings)

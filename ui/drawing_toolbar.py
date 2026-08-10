@@ -39,6 +39,7 @@ class DrawingToolbar(Service):
         default_color: str,
         default_width: int,
         default_line_style: str,
+        default_eraser_mode: str,
         toolbar_button_size: int,
         toolbar_x: int,
         toolbar_y: int,
@@ -49,6 +50,7 @@ class DrawingToolbar(Service):
         self._color = default_color
         self._width = default_width
         self._line_style = default_line_style
+        self._eraser_mode = default_eraser_mode
         self._visible_scope = "overlay"
         self._toolbar_button_size = toolbar_button_size
         self._toolbar_position = QPoint(toolbar_x, toolbar_y)
@@ -63,6 +65,7 @@ class DrawingToolbar(Service):
         self._width_button = QToolButton(self._window)
         self._style_button = QToolButton(self._window)
         self._stamp_button: QToolButton | None = None
+        self._eraser_button: QToolButton | None = None
         self._subscriptions: list[Subscription] = []
         self._window.input_geometry_changed.connect(self._publish_input_exclusion)
         self._window.drag_finished.connect(self._toolbar_drag_finished)
@@ -105,6 +108,10 @@ class DrawingToolbar(Service):
                 self._stamp_button = button
                 button.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
                 button.setMenu(self._stamp_menu())
+            elif tool == "eraser":
+                self._eraser_button = button
+                button.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+                button.setMenu(self._eraser_menu())
             group.addButton(button)
             layout.addWidget(button)
             self._buttons[tool] = button
@@ -146,6 +153,12 @@ class DrawingToolbar(Service):
         self._line_style = line_style
         self._sync_style_buttons()
         self._publish_style()
+
+    def _select_eraser_mode(self, mode: str) -> None:
+        self._eraser_mode = mode
+        self._sync_style_buttons()
+        self._select_tool("eraser")
+        self.bus.publish("drawing.eraser_mode.change", mode=mode)
 
     def _publish_style(self) -> None:
         self.bus.publish(
@@ -212,6 +225,8 @@ class DrawingToolbar(Service):
         self._style_button.setIcon(line_style_icon(self._line_style))
         if self._stamp_button is not None:
             self._stamp_button.setIcon(stamp_icon(self._stamp_name(self._current_tool)))
+        if self._eraser_button is not None:
+            self._eraser_button.setToolTip(tr(f"eraser_mode.{self._eraser_mode}"))
 
     def _add_popup_button(self, layout: QHBoxLayout, button: QToolButton, tooltip: str, menu: QMenu) -> None:
         button.setToolTip(tooltip)
@@ -281,6 +296,13 @@ class DrawingToolbar(Service):
         for stamp in ("star", "heart", "check", "x", "exclamation"):
             action = menu.addAction(stamp_icon(stamp), tr(f"stamp.{stamp}"))
             action.triggered.connect(lambda _checked=False, value=stamp: self._select_tool(f"stamp_{value}"))
+        return menu
+
+    def _eraser_menu(self) -> QMenu:
+        menu = QMenu(self._window)
+        for mode in ("object", "pixel"):
+            action = menu.addAction(tr(f"eraser_mode.{mode}"))
+            action.triggered.connect(lambda _checked=False, value=mode: self._select_eraser_mode(value))
         return menu
 
     def _button_key(self, tool: str) -> str:

@@ -58,7 +58,7 @@ class LocalizationTest(unittest.TestCase):
 
         self.assertIn('tr("tray.capture_region")', tray)
         self.assertIn('tr("settings.language")', settings)
-        self.assertIn("build_notification_tab", settings)
+        self.assertIn("build_capture_notification_tab", settings)
         self.assertIn('tr("settings.notification_enabled")', settings)
         self.assertIn('tr("pinned.copy_annotated")', pinned)
         self.assertIn('tr("live.pin_current_frame")', live)

@@ -40,6 +40,8 @@ class AnnotationToolbar(FloatingToolWindow):
         on_clear: Callable[[], None],
         on_done: Callable[[], None],
         toolbar_button_size: int = 28,
+        current_eraser_mode: str = "object",
+        on_eraser_mode_changed: Callable[[str], None] | None = None,
     ) -> None:
         super().__init__()
         self._owner = parent
@@ -48,14 +50,17 @@ class AnnotationToolbar(FloatingToolWindow):
         self._color = current_color
         self._width = current_width
         self._line_style = current_line_style
+        self._eraser_mode = current_eraser_mode
         self._on_tool_selected = on_tool_selected
         self._on_style_changed = on_style_changed
+        self._on_eraser_mode_changed = on_eraser_mode_changed
         self._toolbar_button_size = toolbar_button_size
         self._buttons: dict[str, QToolButton] = {}
         self._color_button = QToolButton(self)
         self._width_button = QToolButton(self)
         self._style_button = QToolButton(self)
         self._stamp_button: QToolButton | None = None
+        self._eraser_button: QToolButton | None = None
         self._undo_button = QToolButton(self)
         self._redo_button = QToolButton(self)
         self._clear_button = QToolButton(self)
@@ -103,6 +108,10 @@ class AnnotationToolbar(FloatingToolWindow):
                 self._stamp_button = button
                 button.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
                 button.setMenu(self._stamp_menu())
+            elif tool == "eraser":
+                self._eraser_button = button
+                button.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+                button.setMenu(self._eraser_menu())
             group.addButton(button)
             layout.addWidget(button)
             self._buttons[tool] = button
@@ -147,10 +156,19 @@ class AnnotationToolbar(FloatingToolWindow):
         self._sync_style_buttons()
         self._on_style_changed(self._color, self._width, self._line_style)
 
+    def _select_eraser_mode(self, mode: str) -> None:
+        self._eraser_mode = mode
+        self._sync_style_buttons()
+        self._select_tool("eraser")
+        if self._on_eraser_mode_changed is not None:
+            self._on_eraser_mode_changed(mode)
+
     def _sync_style_buttons(self) -> None:
         self._color_button.setIcon(swatch_icon(self._color))
         self._width_button.setIcon(width_icon(self._width))
         self._style_button.setIcon(line_style_icon(self._line_style))
+        if self._eraser_button is not None:
+            self._eraser_button.setToolTip(tr(f"eraser_mode.{self._eraser_mode}"))
 
     def _add_popup_button(self, layout: QHBoxLayout, button: QToolButton, tooltip: str, menu: QMenu) -> None:
         button.setToolTip(tooltip)
@@ -195,6 +213,13 @@ class AnnotationToolbar(FloatingToolWindow):
         for stamp in ("star", "heart", "check", "x", "exclamation"):
             action = menu.addAction(stamp_icon(stamp), tr(f"stamp.{stamp}"))
             action.triggered.connect(lambda _checked=False, value=stamp: self._select_tool(f"stamp_{value}"))
+        return menu
+
+    def _eraser_menu(self) -> QMenu:
+        menu = QMenu(self)
+        for mode in ("object", "pixel"):
+            action = menu.addAction(tr(f"eraser_mode.{mode}"))
+            action.triggered.connect(lambda _checked=False, value=mode: self._select_eraser_mode(value))
         return menu
 
     def _button_key(self, tool: str) -> str:

@@ -20,24 +20,19 @@ from core.event_bus import EventBus
 from core.localization import tr
 from services.settings.settings_manager import SettingsManager
 from ui.settings_sections import (
-    build_command_mode_tab,
-    build_hotkeys_tab,
     build_region_tab,
+    build_shortcuts_tab,
     export_dialog_settings,
     import_dialog_settings,
     reset_dialog_to_defaults,
 )
 from ui.settings_tabs import (
     build_about_tab,
-    build_capture_tab,
-    build_click_tab,
+    build_capture_notification_tab,
     build_drawing_tab,
     build_general_tab,
-    build_live_tab,
-    build_magnifier_tab,
-    build_notification_tab,
-    build_overlay_tab,
-    build_pinned_tab,
+    build_overlay_click_tab,
+    build_windows_tab,
 )
 from ui.settings_values import load_dialog_values, save_dialog_values
 
@@ -67,16 +62,11 @@ class SettingsDialog(QDialog):
         tabs = QTabWidget(self)
         for widget, title in (
             (build_general_tab(self), "settings.tab.general"),
-            (build_overlay_tab(self), "settings.tab.overlay"),
-            (build_click_tab(self), "settings.tab.click"),
-            (build_capture_tab(self), "settings.tab.capture"),
-            (build_notification_tab(self), "settings.tab.notification"),
+            (build_overlay_click_tab(self), "settings.tab.overlay_click"),
+            (build_capture_notification_tab(self), "settings.tab.capture_notification"),
             (build_drawing_tab(self), "settings.tab.drawing"),
-            (build_pinned_tab(self), "settings.tab.pinned"),
-            (build_live_tab(self), "settings.tab.live"),
-            (build_magnifier_tab(self), "settings.tab.magnifier"),
-            (build_hotkeys_tab(self), "settings.tab.hotkeys"),
-            (build_command_mode_tab(self), "settings.tab.command_mode"),
+            (build_windows_tab(self), "settings.tab.windows"),
+            (build_shortcuts_tab(self), "settings.tab.shortcuts"),
             (build_region_tab(self), "settings.tab.region"),
             (build_about_tab(self), "settings.tab.about"),
         ):

@@ -5,7 +5,7 @@ from math import atan2, cos, sin
 from PySide6.QtCore import QPointF, QRect, Qt
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QPolygonF
 
-from drawing.geometry import curve_path
+from drawing.geometry import curve_path, pen_style_for_name
 from drawing.shapes import Shape, ShapeType
 
 
@@ -160,8 +160,4 @@ class ShapeRenderer:
         )
 
     def _pen_style(self, name: str) -> Qt.PenStyle:
-        return {
-            "dash": Qt.PenStyle.DashLine,
-            "dot": Qt.PenStyle.DotLine,
-            "dashdot": Qt.PenStyle.DashDotLine,
-        }.get(name, Qt.PenStyle.SolidLine)
+        return pen_style_for_name(name)

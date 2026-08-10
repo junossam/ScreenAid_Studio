@@ -3,13 +3,14 @@ from __future__ import annotations
 from dataclasses import replace
 from pathlib import Path
 
-from PySide6.QtCore import QPoint, QRect, QSize, Qt
-from PySide6.QtGui import QAction, QGuiApplication, QImage, QKeySequence, QPainter, QShortcut
+from PySide6.QtCore import QPoint, QRect, QRectF, QSize, Qt
+from PySide6.QtGui import QAction, QColor, QGuiApplication, QImage, QKeySequence, QPainter, QPen, QShortcut
 from PySide6.QtWidgets import QFileDialog, QMenu, QMessageBox, QWidget
 
-from config.settings import DrawingSettings, EraserSettings, PinnedWindowSettings
+from config.settings import DrawingSettings, EraserSettings, PinnedWindowSettings, WindowBorderSettings
 from drawing.document import DrawingDocument
 from drawing.events import PointerEvent
+from drawing.geometry import pen_style_for_name
 from drawing.renderer import ShapeRenderer
 from drawing.shapes import Shape
 from drawing.tools import DrawingTool, create_tool
@@ -25,6 +26,7 @@ class PinnedWindow(QWidget):
         settings: PinnedWindowSettings,
         drawing_settings: DrawingSettings,
         eraser_settings: EraserSettings | None = None,
+        border_settings: WindowBorderSettings | None = None,
         display_size: QSize | None = None,
         position: QPoint | None = None,
     ) -> None:
@@ -35,6 +37,7 @@ class PinnedWindow(QWidget):
         self._settings = settings
         self._drawing_settings = drawing_settings
         self._eraser_settings = eraser_settings or EraserSettings(mode="object", size=24)
+        self._border_settings = border_settings or WindowBorderSettings(enabled=False, color="#00a6ff", width=2, style="solid")
         self._current_tool = drawing_settings.default_tool
         self._current_color = drawing_settings.color
         self._current_width = drawing_settings.width
@@ -62,6 +65,8 @@ class PinnedWindow(QWidget):
             on_clear=self.clear_annotations,
             on_done=lambda: self.set_annotation_mode(False),
             toolbar_button_size=drawing_settings.toolbar_button_size,
+            current_eraser_mode=self._eraser_settings.mode,
+            on_eraser_mode_changed=self.set_eraser_mode,
         )
         self._toolbar_user_positioned = False
         self._toolbar.drag_finished.connect(self._annotation_toolbar_moved)
@@ -93,6 +98,21 @@ class PinnedWindow(QWidget):
         target = self._image_target_rect()
         painter.drawImage(target, self._image)
         self._paint_annotations(painter, target)
+        self._paint_border(painter)
+
+    def _paint_border(self, painter: QPainter) -> None:
+        if not self._border_settings.enabled:
+            return
+        width = max(1, self._border_settings.width)
+        painter.save()
+        painter.setPen(QPen(QColor(self._border_settings.color), width, pen_style_for_name(self._border_settings.style)))
+        inset = width / 2
+        painter.drawRect(QRectF(self.rect()).adjusted(inset, inset, -inset, -inset))
+        painter.restore()
+
+    def set_border_settings(self, border_settings: WindowBorderSettings) -> None:
+        self._border_settings = border_settings
+        self.update()
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
@@ -274,6 +294,14 @@ class PinnedWindow(QWidget):
             self._tool = None
             self._preview = None
         self.update()
+
+    def set_eraser_mode(self, mode: str) -> None:
+        self._eraser_settings = replace(self._eraser_settings, mode=mode)
+        self._erasing = False
+        if self._tool is not None:
+            self._tool.cancel()
+            self._tool = None
+            self._preview = None
 
     def undo_annotation(self) -> None:
         dirty = self._document.undo()

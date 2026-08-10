@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.localization import available_languages, tr
+from ui.color_field import ColorField
 from ui.settings_sections import (
     CAPTURE_MODE_OPTIONS,
     DRAWING_TOOL_OPTIONS,
@@ -41,9 +42,12 @@ def build_general_tab(dialog) -> QWidget:
     return widget
 
 
-def build_overlay_tab(dialog) -> QWidget:
+def build_overlay_click_tab(dialog) -> QWidget:
     widget = QWidget()
-    layout = QFormLayout(widget)
+    outer = QVBoxLayout(widget)
+
+    overlay_group = QGroupBox(tr("settings.tab.overlay"))
+    layout = QFormLayout(overlay_group)
     description = QLabel(tr("settings.overlay_description"))
     description.setWordWrap(True)
     description.setStyleSheet("QLabel { color: #555; padding-bottom: 6px; }")
@@ -54,12 +58,10 @@ def build_overlay_tab(dialog) -> QWidget:
     layout.addRow(tr("settings.enable_overlay"), dialog.overlay_enabled)
     layout.addRow(tr("settings.overlay_click_through"), dialog.overlay_click_through)
     layout.addRow(tr("settings.overlay_opacity"), dialog.overlay_opacity)
-    return widget
+    outer.addWidget(overlay_group)
 
-
-def build_click_tab(dialog) -> QWidget:
-    widget = QWidget()
-    layout = QFormLayout(widget)
+    click_group = QGroupBox(tr("settings.tab.click"))
+    layout = QFormLayout(click_group)
     dialog.click_enabled = QCheckBox()
     dialog.show_left = QCheckBox()
     dialog.show_right = QCheckBox()
@@ -76,12 +78,12 @@ def build_click_tab(dialog) -> QWidget:
     dialog.click_radius = dialog._spin(4, 160)
     dialog.click_pressed_radius = dialog._spin(4, 180)
     dialog.click_outline_width = dialog._spin(1, 20)
-    dialog.left_color = QLineEdit()
-    dialog.right_color = QLineEdit()
-    dialog.both_color = QLineEdit()
-    dialog.middle_color = QLineEdit()
-    dialog.wheel_color = QLineEdit()
-    dialog.outline_color = QLineEdit()
+    dialog.left_color = ColorField()
+    dialog.right_color = ColorField()
+    dialog.both_color = ColorField()
+    dialog.middle_color = ColorField()
+    dialog.wheel_color = ColorField()
+    dialog.outline_color = ColorField()
     layout.addRow(tr("settings.enable_click_indicator"), dialog.click_enabled)
     layout.addRow(_click_indicator_group(dialog))
     layout.addRow(tr("settings.use_png_images"), dialog.click_images)
@@ -95,12 +97,17 @@ def build_click_tab(dialog) -> QWidget:
     layout.addRow(tr("settings.click_outline_width"), dialog.click_outline_width)
     layout.addRow(_click_color_group(dialog))
     dialog.click_enabled.toggled.connect(dialog._sync_click_option_state)
+    outer.addWidget(click_group)
+    outer.addStretch(1)
     return widget
 
 
-def build_capture_tab(dialog) -> QWidget:
+def build_capture_notification_tab(dialog) -> QWidget:
     widget = QWidget()
-    layout = QFormLayout(widget)
+    outer = QVBoxLayout(widget)
+
+    capture_group = QGroupBox(tr("settings.tab.capture"))
+    layout = QFormLayout(capture_group)
     dialog.capture_enabled = QCheckBox()
     dialog.capture_default_mode = QComboBox()
     add_translated_items(dialog.capture_default_mode, "capture_mode", CAPTURE_MODE_OPTIONS)
@@ -132,12 +139,10 @@ def build_capture_tab(dialog) -> QWidget:
         ("settings.remember_last_region", dialog.remember_last_region),
     ):
         layout.addRow(tr(label), control)
-    return widget
+    outer.addWidget(capture_group)
 
-
-def build_notification_tab(dialog) -> QWidget:
-    widget = QWidget()
-    layout = QFormLayout(widget)
+    notification_group = QGroupBox(tr("settings.tab.notification"))
+    layout = QFormLayout(notification_group)
     dialog.notification_enabled = QCheckBox()
     dialog.notification_capture_completed = QCheckBox()
     dialog.notification_capture_failed = QCheckBox()
@@ -164,6 +169,8 @@ def build_notification_tab(dialog) -> QWidget:
     ):
         layout.addRow(tr(label), control)
     dialog.notification_enabled.toggled.connect(dialog._sync_notification_option_state)
+    outer.addWidget(notification_group)
+    outer.addStretch(1)
     return widget
 
 
@@ -176,7 +183,7 @@ def build_drawing_tab(dialog) -> QWidget:
     dialog.drawing_width = dialog._spin(1, 64)
     dialog.line_style = QComboBox()
     add_translated_items(dialog.line_style, "line_style", LINE_STYLE_OPTIONS)
-    dialog.drawing_color = QLineEdit()
+    dialog.drawing_color = ColorField()
     dialog.toolbar_button_size = dialog._spin(22, 48)
     dialog.drawing_opacity = dialog._spin(0, 255)
     dialog.drawing_undo_limit = dialog._spin(1, 1000)
@@ -184,7 +191,7 @@ def build_drawing_tab(dialog) -> QWidget:
     dialog.show_click_effects_while_drawing = QCheckBox()
     dialog.confirm_clear_all = QCheckBox()
     dialog.drawing_smoothing = QCheckBox()
-    dialog.highlighter_color = QLineEdit()
+    dialog.highlighter_color = ColorField()
     dialog.highlighter_width = dialog._spin(1, 96)
     dialog.highlighter_opacity = dialog._spin(0, 255)
     dialog.highlighter_snap_horizontal = QCheckBox()
@@ -215,9 +222,12 @@ def build_drawing_tab(dialog) -> QWidget:
     return widget
 
 
-def build_pinned_tab(dialog) -> QWidget:
+def build_windows_tab(dialog) -> QWidget:
     widget = QWidget()
-    layout = QFormLayout(widget)
+    outer = QVBoxLayout(widget)
+
+    pinned_group = QGroupBox(tr("settings.tab.pinned"))
+    layout = QFormLayout(pinned_group)
     dialog.pinned_enabled = QCheckBox()
     dialog.pinned_default_zoom = dialog._double_spin(0.1, 8.0, 0.05)
     dialog.pinned_min_zoom = dialog._double_spin(0.1, 8.0, 0.05)
@@ -228,12 +238,10 @@ def build_pinned_tab(dialog) -> QWidget:
     layout.addRow(tr("settings.min_zoom"), dialog.pinned_min_zoom)
     layout.addRow(tr("settings.max_zoom"), dialog.pinned_max_zoom)
     layout.addRow(tr("settings.pinned_click_through"), dialog.pinned_click_through)
-    return widget
+    outer.addWidget(pinned_group)
 
-
-def build_live_tab(dialog) -> QWidget:
-    widget = QWidget()
-    layout = QFormLayout(widget)
+    live_group = QGroupBox(tr("settings.tab.live"))
+    layout = QFormLayout(live_group)
     dialog.live_enabled = QCheckBox()
     dialog.live_fps = dialog._spin(1, 30)
     dialog.live_min_fps = dialog._spin(1, 30)
@@ -242,18 +250,32 @@ def build_live_tab(dialog) -> QWidget:
     layout.addRow(tr("settings.default_fps"), dialog.live_fps)
     layout.addRow(tr("settings.min_fps"), dialog.live_min_fps)
     layout.addRow(tr("settings.max_fps"), dialog.live_max_fps)
-    return widget
+    outer.addWidget(live_group)
 
+    border_group = QGroupBox(tr("settings.tab.window_border"))
+    layout = QFormLayout(border_group)
+    dialog.window_border_enabled = QCheckBox()
+    dialog.window_border_color = ColorField()
+    dialog.window_border_width = dialog._spin(1, 20)
+    dialog.window_border_style = QComboBox()
+    add_translated_items(dialog.window_border_style, "line_style", LINE_STYLE_OPTIONS)
+    layout.addRow(tr("settings.window_border_enabled"), dialog.window_border_enabled)
+    layout.addRow(tr("settings.window_border_color"), dialog.window_border_color)
+    layout.addRow(tr("settings.window_border_width"), dialog.window_border_width)
+    layout.addRow(tr("settings.window_border_style"), dialog.window_border_style)
+    outer.addWidget(border_group)
 
-def build_magnifier_tab(dialog) -> QWidget:
-    widget = QWidget()
-    layout = QFormLayout(widget)
+    magnifier_group = QGroupBox(tr("settings.tab.magnifier"))
+    layout = QFormLayout(magnifier_group)
     dialog.magnifier_enabled = QCheckBox()
     dialog.magnifier_scale = dialog._double_spin(1.1, 5.0, 0.1)
     dialog.magnifier_keep_drawings = QCheckBox()
     layout.addRow(tr("settings.enable_magnifier"), dialog.magnifier_enabled)
     layout.addRow(tr("settings.magnifier_scale"), dialog.magnifier_scale)
     layout.addRow(tr("settings.magnifier_keep_drawings"), dialog.magnifier_keep_drawings)
+    outer.addWidget(magnifier_group)
+
+    outer.addStretch(1)
     return widget
 
 

@@ -116,6 +116,7 @@ class PinnedWindowManager(Service):
             self.settings.pinned_window,
             self.settings.drawing,
             self.settings.eraser,
+            self.settings.window_border,
             display_size=display_size,
             position=position,
         )
@@ -140,3 +141,4 @@ class PinnedWindowManager(Service):
         self.settings = settings
         for window in tuple(self._windows):
             window.set_toolbar_button_size(settings.drawing.toolbar_button_size)
+            window.set_border_settings(settings.window_border)

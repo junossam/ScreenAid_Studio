@@ -37,6 +37,7 @@ class DrawingController(Service):
             self.bus.subscribe("drawing.shape.commit", self._commit_shape),
             self.bus.subscribe("drawing.tool.select", self._select_tool),
             self.bus.subscribe("drawing.style.change", self._change_style),
+            self.bus.subscribe("drawing.eraser_mode.change", self._change_eraser_mode),
             self.bus.subscribe("settings.saved", self._settings_saved),
         ]
         self.bus.publish("drawing.document.ready", document=self.document)
@@ -171,6 +172,12 @@ class DrawingController(Service):
         )
         if not self._drawing:
             self._tool = create_tool(self.settings)
+
+    def _change_eraser_mode(self, event: Event) -> None:
+        mode = event.payload.get("mode")
+        if mode not in {"object", "pixel"}:
+            return
+        self.eraser_settings = replace(self.eraser_settings, mode=mode)
 
     def _settings_saved(self, event: Event) -> None:
         settings = event.payload.get("settings")

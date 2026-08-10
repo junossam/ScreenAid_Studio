@@ -134,6 +134,14 @@ class LiveViewSettings:
 
 
 @dataclass(frozen=True)
+class WindowBorderSettings:
+    enabled: bool
+    color: str
+    width: int
+    style: str
+
+
+@dataclass(frozen=True)
 class HotkeySettings:
     values: dict[str, str]
 
@@ -177,6 +185,7 @@ class Settings:
     notification: NotificationSettings
     pinned_window: PinnedWindowSettings
     live_view: LiveViewSettings
+    window_border: WindowBorderSettings
     hotkeys: HotkeySettings
     command_mode: CommandModeSettings
     region_selection: RegionSelectionSettings
@@ -304,6 +313,12 @@ class Settings:
                 default_fps=min(30, max(1, parser.getint("live_view", "default_fps", fallback=10))),
                 min_fps=min(30, max(1, parser.getint("live_view", "min_fps", fallback=1))),
                 max_fps=min(30, max(1, parser.getint("live_view", "max_fps", fallback=30))),
+            ),
+            window_border=WindowBorderSettings(
+                enabled=parser.getboolean("window_border", "enabled", fallback=False),
+                color=parser.get("window_border", "color", fallback="#00a6ff"),
+                width=max(1, parser.getint("window_border", "width", fallback=2)),
+                style=parser.get("window_border", "style", fallback="solid"),
             ),
             hotkeys=HotkeySettings(
                 values={

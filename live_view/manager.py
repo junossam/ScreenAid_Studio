@@ -25,6 +25,7 @@ class LiveViewManager(Service):
             self.bus.subscribe("live.region", self._select_region),
             self.bus.subscribe("live.stop_all", self._stop_all),
             self.bus.subscribe("app.pause.changed", self._pause_all),
+            self.bus.subscribe("settings.saved", self._settings_saved),
         ]
 
     def stop(self) -> None:
@@ -52,7 +53,7 @@ class LiveViewManager(Service):
         if rect is None or rect.normalized().isNull():
             return
         self.bus.publish("overlay.capture_visuals.suspended", source="live_view", suspended=True)
-        window = LiveViewWindow(rect.normalized(), self.settings.live_view, self.bus)
+        window = LiveViewWindow(rect.normalized(), self.settings.live_view, self.bus, self.settings.window_border)
         window.destroyed.connect(lambda _obj=None, item=window: self._forget(item))
         self._windows.append(window)
         window.show()
@@ -82,3 +83,11 @@ class LiveViewManager(Service):
         self._globally_paused = bool(event.payload.get("paused", False))
         for window in tuple(self._windows):
             window.set_paused(self._globally_paused)
+
+    def _settings_saved(self, event: Event) -> None:
+        settings = event.payload.get("settings")
+        if not isinstance(settings, Settings):
+            return
+        self.settings = settings
+        for window in tuple(self._windows):
+            window.set_border_settings(settings.window_border)

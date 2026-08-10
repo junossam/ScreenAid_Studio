@@ -8,8 +8,10 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialogButtonBox,
     QFormLayout,
+    QGroupBox,
     QLineEdit,
     QMessageBox,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -82,21 +84,22 @@ def localize_dialog_buttons(buttons, reset_button) -> None:
     reset_button.setText(tr("settings.reset_defaults"))
 
 
-def build_hotkeys_tab(dialog) -> QWidget:
+def build_shortcuts_tab(dialog) -> QWidget:
     widget = QWidget()
-    layout = QFormLayout(widget)
+    outer = QVBoxLayout(widget)
+
+    hotkeys_group = QGroupBox(tr("settings.tab.hotkeys"))
+    layout = QFormLayout(hotkeys_group)
     dialog.hotkey_fields = {}
     for name, default in DEFAULT_HOTKEYS.items():
         field = QLineEdit()
         field.setPlaceholderText(default)
         dialog.hotkey_fields[name] = field
         layout.addRow(tr(f"hotkey.{name}"), field)
-    return widget
+    outer.addWidget(hotkeys_group)
 
-
-def build_command_mode_tab(dialog) -> QWidget:
-    widget = QWidget()
-    layout = QFormLayout(widget)
+    command_mode_group = QGroupBox(tr("settings.tab.command_mode"))
+    layout = QFormLayout(command_mode_group)
     dialog.command_mode_show_hint = QCheckBox()
     dialog.command_mode_timeout = dialog._spin(500, 30000)
     dialog.command_key_fields = {}
@@ -106,6 +109,9 @@ def build_command_mode_tab(dialog) -> QWidget:
         field = QLineEdit()
         dialog.command_key_fields[name] = field
         layout.addRow(tr(f"hotkey.{name}"), field)
+    outer.addWidget(command_mode_group)
+
+    outer.addStretch(1)
     return widget
 
 

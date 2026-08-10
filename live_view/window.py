@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QPoint, QRect, QSize, QThread, QTimer, Qt, Signal
-from PySide6.QtGui import QAction, QColor, QFont, QGuiApplication, QImage, QKeySequence, QPainter, QShortcut
+from PySide6.QtCore import QPoint, QRect, QRectF, QSize, QThread, QTimer, Qt, Signal
+from PySide6.QtGui import QAction, QColor, QFont, QImage, QKeySequence, QPainter, QPen, QShortcut
 from PySide6.QtWidgets import QMenu, QWidget
 
-from config.settings import LiveViewSettings
+from config.settings import LiveViewSettings, WindowBorderSettings
 from core.event_bus import EventBus
 from core.localization import tr
+from drawing.geometry import pen_style_for_name
 from live_view.worker import LiveCaptureWorker
 from overlay.coordinates import ScreenCoordinateMapper
 from utils.winapi import set_click_through
@@ -17,11 +18,18 @@ class LiveViewWindow(QWidget):
 
     FPS_PRESETS = (1, 5, 10, 15, 30)
 
-    def __init__(self, rect: QRect, settings: LiveViewSettings, bus: EventBus) -> None:
+    def __init__(
+        self,
+        rect: QRect,
+        settings: LiveViewSettings,
+        bus: EventBus,
+        border_settings: WindowBorderSettings | None = None,
+    ) -> None:
         super().__init__()
         self.source_rect = rect.normalized()
         self.settings = settings
         self.bus = bus
+        self._border_settings = border_settings or WindowBorderSettings(enabled=False, color="#00a6ff", width=2, style="solid")
         self._coordinates = ScreenCoordinateMapper()
         self._display_rect = self._coordinates.physical_to_qt_rect(self.source_rect)
         self._fps = self._clamp_fps(settings.default_fps)
@@ -74,8 +82,24 @@ class LiveViewWindow(QWidget):
                     Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft | Qt.TextFlag.TextWordWrap,
                     f"Live capture failed:\n{self._last_error}",
                 )
+            self._paint_border(painter)
             return
         painter.drawImage(self._image_target_rect(), self._latest_image)
+        self._paint_border(painter)
+
+    def _paint_border(self, painter: QPainter) -> None:
+        if not self._border_settings.enabled:
+            return
+        width = max(1, self._border_settings.width)
+        painter.save()
+        painter.setPen(QPen(QColor(self._border_settings.color), width, pen_style_for_name(self._border_settings.style)))
+        inset = width / 2
+        painter.drawRect(QRectF(self.rect()).adjusted(inset, inset, -inset, -inset))
+        painter.restore()
+
+    def set_border_settings(self, border_settings: WindowBorderSettings) -> None:
+        self._border_settings = border_settings
+        self.update()
 
     def mousePressEvent(self, event) -> None:
         self._activate_for_keyboard()
@@ -197,30 +221,45 @@ class LiveViewWindow(QWidget):
     def _non_overlapping_position(self, source_rect: QRect, size: QSize) -> QPoint:
         # A window opened directly on top of the region it keeps re-capturing
         # would capture itself every tick (an infinite visual feedback loop),
-        # so nudge it just outside the source region instead.
+        # so nudge it just outside the source region instead. Uses the same
+        # Win32-backed monitor lookup as the rest of the app (ScreenCoordinateMapper)
+        # rather than QGuiApplication.screenAt(), which has been unreliable near
+        # monitor edges on mixed-DPI multi-monitor setups - falling back to
+        # QGuiApplication.primaryScreen() there would silently pick the wrong
+        # monitor's bounds whenever the capture region was on a secondary display.
         if not QRect(source_rect.topLeft(), size).intersects(source_rect):
             return source_rect.topLeft()
-        screen = QGuiApplication.screenAt(source_rect.center()) or QGuiApplication.primaryScreen()
-        work_area = screen.availableGeometry() if screen is not None else QRect(source_rect.topLeft(), size)
+        work_area = self._coordinates.work_area_for_point(source_rect.center())
         gap = 12
-        candidates = (
-            QPoint(source_rect.right() + gap, source_rect.top()),
-            QPoint(source_rect.left() - size.width() - gap, source_rect.top()),
-            QPoint(source_rect.left(), source_rect.bottom() + gap),
-            QPoint(source_rect.left(), source_rect.top() - size.height() - gap),
-        )
-        for point in candidates:
-            candidate_rect = QRect(point, size)
-            if work_area.contains(candidate_rect) and not candidate_rect.intersects(source_rect):
-                return point
-        # Nothing fits cleanly next to the source region on this screen
-        # (e.g. it covers nearly the whole screen) - fall back to a diagonal
-        # offset clamped to the screen so it at least isn't a full overlap.
-        offset = QPoint(source_rect.left() + 40, source_rect.top() + 40)
-        return QPoint(
-            min(max(offset.x(), work_area.left()), max(work_area.left(), work_area.right() - size.width())),
-            min(max(offset.y(), work_area.top()), max(work_area.top(), work_area.bottom() - size.height())),
-        )
+        space_right = work_area.right() - source_rect.right()
+        space_left = source_rect.left() - work_area.left()
+        space_below = work_area.bottom() - source_rect.bottom()
+        space_above = source_rect.top() - work_area.top()
+        best_direction = max(
+            ("right", space_right),
+            ("left", space_left),
+            ("below", space_below),
+            ("above", space_above),
+            key=lambda item: item[1],
+        )[0]
+        # Whichever direction has the most free room wins, and the window is
+        # placed fully in that direction (clamped to the monitor) rather than
+        # tried against a fixed set of candidates - that way it's never left
+        # mostly overlapping the source region just because no single
+        # direction had *exactly* enough space.
+        if best_direction == "right":
+            x = min(source_rect.right() + gap, work_area.right() - size.width())
+            y = min(max(source_rect.top(), work_area.top()), work_area.bottom() - size.height())
+        elif best_direction == "left":
+            x = max(source_rect.left() - size.width() - gap, work_area.left())
+            y = min(max(source_rect.top(), work_area.top()), work_area.bottom() - size.height())
+        elif best_direction == "below":
+            x = min(max(source_rect.left(), work_area.left()), work_area.right() - size.width())
+            y = min(source_rect.bottom() + gap, work_area.bottom() - size.height())
+        else:
+            x = min(max(source_rect.left(), work_area.left()), work_area.right() - size.width())
+            y = max(source_rect.top() - size.height() - gap, work_area.top())
+        return QPoint(x, y)
 
     def _capture_next(self) -> None:
         if not self._running or self._paused:

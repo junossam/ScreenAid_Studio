@@ -72,6 +72,7 @@ class ServiceContainer:
             default_color=settings.drawing.color,
             default_width=settings.drawing.width,
             default_line_style=settings.drawing.line_style,
+            default_eraser_mode=settings.eraser.mode,
             toolbar_button_size=settings.drawing.toolbar_button_size,
             toolbar_x=settings.drawing.toolbar_x,
             toolbar_y=settings.drawing.toolbar_y,

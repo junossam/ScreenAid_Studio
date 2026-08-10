@@ -60,4 +60,29 @@ def toolbar_style(button_size: int) -> str:
             border: 0;
             padding: 5px 7px;
         }}
+        QMenu {{
+            background: rgb(32, 34, 38);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 70);
+            border-radius: 6px;
+            padding: 4px;
+        }}
+        QMenu::item {{
+            color: white;
+            background: transparent;
+            padding: 6px 24px 6px 12px;
+            border-radius: 4px;
+        }}
+        QMenu::item:selected {{
+            background: #0a84ff;
+            color: white;
+        }}
+        QMenu::item:disabled {{
+            color: rgba(255, 255, 255, 90);
+        }}
+        QMenu::separator {{
+            height: 1px;
+            background: rgba(255, 255, 255, 60);
+            margin: 4px 6px;
+        }}
         """
