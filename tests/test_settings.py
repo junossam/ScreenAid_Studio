@@ -56,10 +56,16 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings.command_mode.keys["pin_last_capture"], "B")
         self.assertEqual(settings.command_mode.keys["live_stop_all"], "X")
         self.assertEqual(settings.command_mode.keys["fullscreen_magnifier"], "F")
+        self.assertEqual(settings.command_mode.keys["toggle_live_zoom"], "J")
         self.assertEqual(settings.command_mode.keys["toggle_pause"], "Space")
         self.assertEqual(settings.region_selection.minimum_width, 4)
         self.assertTrue(settings.magnifier.enabled)
         self.assertEqual(settings.magnifier.scale, 2.0)
+        self.assertTrue(settings.live_zoom.enabled)
+        self.assertEqual(settings.live_zoom.min_scale, 1.0)
+        self.assertEqual(settings.live_zoom.max_scale, 8.0)
+        self.assertEqual(settings.live_zoom.default_scale, 2.0)
+        self.assertEqual(settings.live_zoom.wheel_step, 0.25)
 
 
 if __name__ == "__main__":

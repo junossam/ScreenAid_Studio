@@ -47,6 +47,7 @@ COMMAND_MODE_COMMANDS = {
     "live_region": CommandId.LIVE_REGION,
     "live_stop_all": CommandId.LIVE_STOP_ALL,
     "fullscreen_magnifier": CommandId.FULLSCREEN_MAGNIFIER,
+    "toggle_live_zoom": CommandId.TOGGLE_LIVE_ZOOM,
     "open_settings": CommandId.OPEN_SETTINGS,
     "toggle_pause": CommandId.TOGGLE_PAUSE,
 }
@@ -67,7 +68,7 @@ COMMAND_MODE_GROUPS = (
     ),
     (
         "command_mode.group.windows",
-        ("pin_region", "pin_last_capture", "live_region", "live_stop_all", "fullscreen_magnifier"),
+        ("pin_region", "pin_last_capture", "live_region", "live_stop_all", "fullscreen_magnifier", "toggle_live_zoom"),
     ),
     ("command_mode.group.settings", ("open_settings",)),
 )

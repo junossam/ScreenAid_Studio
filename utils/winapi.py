@@ -7,6 +7,7 @@ from ctypes import wintypes
 user32 = ctypes.windll.user32
 gdi32 = ctypes.windll.gdi32
 kernel32 = ctypes.windll.kernel32
+magnification = ctypes.windll.magnification
 
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 
@@ -56,6 +57,11 @@ VK_MBUTTON = 0x04
 MONITOR_DEFAULTTONEAREST = 2
 LLMHF_INJECTED = 0x00000001
 LLMHF_LOWER_IL_INJECTED = 0x00000002
+
+SM_XVIRTUALSCREEN = 76
+SM_YVIRTUALSCREEN = 77
+SM_CXVIRTUALSCREEN = 78
+SM_CYVIRTUALSCREEN = 79
 
 
 class POINT(ctypes.Structure):
@@ -189,6 +195,21 @@ user32.SetCursorPos.argtypes = [ctypes.c_int, ctypes.c_int]
 user32.SetCursorPos.restype = wintypes.BOOL
 user32.mouse_event.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.DWORD, wintypes.DWORD, ULONG_PTR]
 user32.mouse_event.restype = None
+# Magnification API's full-screen transform - the same in-process API Windows
+# Magnifier and Sysinternals Zoomit's LiveZoom use internally to do a live
+# display-level zoom (DWM transform, no window covers the screen, so mouse/
+# keyboard input keeps hitting the real, already-correct on-screen target).
+magnification.MagInitialize.restype = wintypes.BOOL
+magnification.MagUninitialize.restype = wintypes.BOOL
+magnification.MagSetFullscreenTransform.argtypes = [ctypes.c_float, ctypes.c_int, ctypes.c_int]
+magnification.MagSetFullscreenTransform.restype = wintypes.BOOL
+magnification.MagGetFullscreenTransform.argtypes = [
+    ctypes.POINTER(ctypes.c_float),
+    ctypes.POINTER(ctypes.c_int),
+    ctypes.POINTER(ctypes.c_int),
+]
+magnification.MagGetFullscreenTransform.restype = wintypes.BOOL
+
 if hasattr(user32, "SetWindowDisplayAffinity"):
     user32.SetWindowDisplayAffinity.argtypes = [HWND, wintypes.DWORD]
     user32.SetWindowDisplayAffinity.restype = wintypes.BOOL
@@ -273,6 +294,31 @@ def cursor_pos() -> POINT:
     if not user32.GetCursorPos(ctypes.byref(point)):
         raise OSError("GetCursorPos failed")
     return point
+
+
+def virtual_desktop_rect() -> tuple[int, int, int, int]:
+    """(left, top, right, bottom) of the union of all monitors, in virtual-
+    screen coordinates - the same coordinate system GetCursorPos uses. The
+    primary monitor's own top-left is always (0, 0) in this system, so other
+    monitors can have negative coordinates.
+    """
+    left = user32.GetSystemMetrics(SM_XVIRTUALSCREEN)
+    top = user32.GetSystemMetrics(SM_YVIRTUALSCREEN)
+    width = user32.GetSystemMetrics(SM_CXVIRTUALSCREEN)
+    height = user32.GetSystemMetrics(SM_CYVIRTUALSCREEN)
+    return left, top, left + width, top + height
+
+
+def mag_initialize() -> bool:
+    return bool(magnification.MagInitialize())
+
+
+def mag_uninitialize() -> bool:
+    return bool(magnification.MagUninitialize())
+
+
+def mag_set_fullscreen_transform(scale: float, x_offset: int, y_offset: int) -> bool:
+    return bool(magnification.MagSetFullscreenTransform(ctypes.c_float(scale), x_offset, y_offset))
 
 
 def foreground_window_rect() -> tuple[int, RECT]:

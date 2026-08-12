@@ -146,6 +146,11 @@ def _load_windows(dialog) -> None:
     dialog.magnifier_enabled.setChecked(dialog._bool("magnifier", "enabled", True))
     dialog.magnifier_scale.setValue(dialog._float("magnifier", "scale", 2.0))
     dialog.magnifier_keep_drawings.setChecked(dialog._bool("magnifier", "keep_drawings_on_close", False))
+    dialog.live_zoom_enabled.setChecked(dialog._bool("live_zoom", "enabled", True))
+    dialog.live_zoom_min_scale.setValue(dialog._float("live_zoom", "min_scale", 1.0))
+    dialog.live_zoom_max_scale.setValue(dialog._float("live_zoom", "max_scale", 8.0))
+    dialog.live_zoom_default_scale.setValue(dialog._float("live_zoom", "default_scale", 2.0))
+    dialog.live_zoom_wheel_step.setValue(dialog._float("live_zoom", "wheel_step", 0.25))
 
 
 def _load_region_and_keys(dialog) -> None:
@@ -282,6 +287,11 @@ def _save_windows(dialog) -> None:
     dialog._set("magnifier", "enabled", dialog.magnifier_enabled.isChecked())
     dialog._set("magnifier", "scale", dialog.magnifier_scale.value())
     dialog._set("magnifier", "keep_drawings_on_close", dialog.magnifier_keep_drawings.isChecked())
+    dialog._set("live_zoom", "enabled", dialog.live_zoom_enabled.isChecked())
+    dialog._set("live_zoom", "min_scale", dialog.live_zoom_min_scale.value())
+    dialog._set("live_zoom", "max_scale", dialog.live_zoom_max_scale.value())
+    dialog._set("live_zoom", "default_scale", dialog.live_zoom_default_scale.value())
+    dialog._set("live_zoom", "wheel_step", dialog.live_zoom_wheel_step.value())
 
 
 def _resolve_fps_range(dialog) -> tuple[int, int]:

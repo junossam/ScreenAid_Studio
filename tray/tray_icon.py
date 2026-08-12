@@ -67,6 +67,7 @@ class TrayIcon(Service):
         self._menu.addAction(self._action(tr("tray.toggle_overlay"), CommandId.TOGGLE_OVERLAY))
         self._menu.addAction(self._action(tr("tray.toggle_drawing_mode"), CommandId.TOGGLE_DRAWING_MODE))
         self._menu.addAction(self._action(tr("tray.input_pass_through"), CommandId.DRAWING_PASS_THROUGH))
+        self._menu.addAction(self._action(tr("tray.live_zoom_toggle"), CommandId.TOGGLE_LIVE_ZOOM))
         self._menu.addAction(self._action(tr("tray.undo_drawing"), CommandId.UNDO_DRAWING))
         self._menu.addAction(self._action(tr("tray.redo_drawing"), CommandId.REDO_DRAWING))
         self._menu.addAction(self._action(tr("tray.clear_drawing"), CommandId.CLEAR_DRAWING))
@@ -94,6 +95,7 @@ class TrayIcon(Service):
                 self.bus.subscribe("hotkey.failed", self._hotkey_failed),
                 self.bus.subscribe("pin.failed", self._pin_failed),
                 self.bus.subscribe("live.failed", self._live_failed),
+                self.bus.subscribe("live_zoom.failed", self._live_zoom_failed),
                 self.bus.subscribe("drawing.mode.changed", self._drawing_mode_changed),
                 self.bus.subscribe("app.pause.changed", self._pause_changed),
                 self.bus.subscribe("app.command.blocked", self._command_blocked),
@@ -251,6 +253,14 @@ class TrayIcon(Service):
         self._show_notification(
             "live_failed",
             tr("notify.live_failed", error=event.payload.get("error", "unknown error")),
+            QSystemTrayIcon.MessageIcon.Warning,
+            2200,
+        )
+
+    def _live_zoom_failed(self, event: Event) -> None:
+        self._show_notification(
+            "live_zoom_failed",
+            tr("notify.live_zoom_failed", error=event.payload.get("error", "unknown error")),
             QSystemTrayIcon.MessageIcon.Warning,
             2200,
         )

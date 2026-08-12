@@ -13,6 +13,7 @@ from core.event_bus import EventBus
 from core.hotkeys import HotkeyManager
 from drawing.controller import DrawingController
 from live_view.manager import LiveViewManager
+from live_zoom.service import LiveZoomService
 from magnifier.window import MagnifierWindow
 from mouse.hook import GlobalMouseHook
 from overlay.window import OverlayWindow
@@ -37,6 +38,7 @@ class ServiceContainer:
     pinned: PinnedWindowManager
     live_view: LiveViewManager
     magnifier: MagnifierWindow
+    live_zoom: LiveZoomService
     mouse: GlobalMouseHook
     hotkeys: HotkeyManager
     command_mode: CommandModeService
@@ -61,6 +63,7 @@ class ServiceContainer:
             eraser_settings=settings.eraser,
             bus=event_bus,
         )
+        live_zoom = LiveZoomService(settings=settings.live_zoom, bus=event_bus)
         mouse = GlobalMouseHook(bus=event_bus)
         hotkeys = HotkeyManager(dispatcher=dispatcher, hotkeys=settings.hotkeys, bus=event_bus)
         command_mode = CommandModeService(settings.command_mode, dispatcher=dispatcher, bus=event_bus)
@@ -97,6 +100,7 @@ class ServiceContainer:
             pinned=pinned,
             live_view=live_view,
             magnifier=magnifier,
+            live_zoom=live_zoom,
             mouse=mouse,
             hotkeys=hotkeys,
             command_mode=command_mode,

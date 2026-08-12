@@ -35,6 +35,7 @@ class AppController:
         self.container.pinned.start()
         self.container.live_view.start()
         self.container.magnifier.start()
+        self.container.live_zoom.start()
         self.container.settings_window.start()
         self.container.toolbar_position_store.start()
         self.container.drawing_toolbar.start()
@@ -57,6 +58,7 @@ class AppController:
         self.container.toolbar_position_store.stop()
         self.container.settings_window.stop()
         self.container.live_view.stop()
+        self.container.live_zoom.stop()
         self.container.magnifier.stop()
         self.container.pinned.stop()
         self.container.capture.stop()
@@ -98,6 +100,7 @@ class AppController:
         self.dispatcher.register(CommandId.LIVE_REGION, lambda: self._publish_when_active("live.region"))
         self.dispatcher.register(CommandId.LIVE_STOP_ALL, lambda: self.bus.publish("live.stop_all"))
         self.dispatcher.register(CommandId.FULLSCREEN_MAGNIFIER, lambda: self._publish_when_active("magnifier.fullscreen.toggle"))
+        self.dispatcher.register(CommandId.TOGGLE_LIVE_ZOOM, lambda: self._publish_when_active("live_zoom.toggle"))
 
     def _toggle_overlay(self) -> None:
         if self.container.overlay.isVisible():

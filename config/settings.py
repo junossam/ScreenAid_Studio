@@ -173,6 +173,15 @@ class MagnifierSettings:
 
 
 @dataclass(frozen=True)
+class LiveZoomSettings:
+    enabled: bool
+    min_scale: float
+    max_scale: float
+    default_scale: float
+    wheel_step: float
+
+
+@dataclass(frozen=True)
 class Settings:
     app: AppSettings
     storage: StorageSettings
@@ -190,6 +199,7 @@ class Settings:
     command_mode: CommandModeSettings
     region_selection: RegionSelectionSettings
     magnifier: MagnifierSettings
+    live_zoom: LiveZoomSettings
 
     @classmethod
     def load(cls, path: Path) -> "Settings":
@@ -351,6 +361,7 @@ class Settings:
                     "live_region": parser.get("command_mode", "live_region", fallback="G"),
                     "live_stop_all": parser.get("command_mode", "live_stop_all", fallback="X"),
                     "fullscreen_magnifier": parser.get("command_mode", "fullscreen_magnifier", fallback="F"),
+                    "toggle_live_zoom": parser.get("command_mode", "toggle_live_zoom", fallback="J"),
                     "open_settings": parser.get("command_mode", "open_settings", fallback="S"),
                     "toggle_pause": parser.get("command_mode", "toggle_pause", fallback="Space"),
                 },
@@ -371,5 +382,12 @@ class Settings:
                 scale=parser.getfloat("magnifier", "scale", fallback=2.0),
                 size=parser.getint("magnifier", "size", fallback=260),
                 keep_drawings_on_close=parser.getboolean("magnifier", "keep_drawings_on_close", fallback=False),
+            ),
+            live_zoom=LiveZoomSettings(
+                enabled=parser.getboolean("live_zoom", "enabled", fallback=True),
+                min_scale=parser.getfloat("live_zoom", "min_scale", fallback=1.0),
+                max_scale=parser.getfloat("live_zoom", "max_scale", fallback=8.0),
+                default_scale=parser.getfloat("live_zoom", "default_scale", fallback=2.0),
+                wheel_step=parser.getfloat("live_zoom", "wheel_step", fallback=0.25),
             ),
         )

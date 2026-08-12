@@ -39,6 +39,7 @@ COMMAND_KEY_DEFAULTS = {
     "live_region": "G",
     "live_stop_all": "X",
     "fullscreen_magnifier": "F",
+    "toggle_live_zoom": "J",
     "open_settings": "S",
     "toggle_pause": "Space",
 }
