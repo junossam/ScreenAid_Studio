@@ -132,6 +132,43 @@ class OverlayCoordinateTests(unittest.TestCase):
         self.assertIn("self.physical_to_qt_point(rect.left(), rect.bottom())", source)
         self.assertIn("_bounding_rect", source)
 
+    def test_physical_to_qt_point_disambiguates_identical_monitors_by_position(self) -> None:
+        # Two monitors with the same resolution and scale factor score
+        # identically under a scale-only heuristic, which used to make every
+        # point resolve to whichever screen was enumerated first regardless
+        # of which monitor it was actually on (reported bug: clicking the
+        # left/secondary monitor was always registered on the right/primary
+        # one). Device names deliberately don't match to force the fallback.
+        mapper = ScreenCoordinateMapper()
+        right_monitor = SimpleNamespace(
+            szDevice="\\\\.\\DISPLAY1",
+            rcMonitor=SimpleNamespace(left=0, top=0, right=1920, bottom=1080),
+        )
+        left_monitor = SimpleNamespace(
+            szDevice="\\\\.\\DISPLAY2",
+            rcMonitor=SimpleNamespace(left=-1920, top=0, right=0, bottom=1080),
+        )
+        right_screen = SimpleNamespace(
+            name=lambda: "GenericPnPMonitorA",
+            geometry=lambda: QRect(0, 0, 1920, 1080),
+            devicePixelRatio=lambda: 1.0,
+        )
+        left_screen = SimpleNamespace(
+            name=lambda: "GenericPnPMonitorB",
+            geometry=lambda: QRect(-1920, 0, 1920, 1080),
+            devicePixelRatio=lambda: 1.0,
+        )
+        physical_virtual = SimpleNamespace(left=-1920, top=0, right=1920, bottom=1080, width=3840, height=1080)
+
+        with (
+            patch("overlay.coordinates.monitor_info_from_point", return_value=left_monitor),
+            patch("overlay.coordinates.QGuiApplication.screens", return_value=[right_screen, left_screen]),
+            patch("overlay.coordinates.virtual_screen_rect", return_value=physical_virtual),
+        ):
+            point = mapper.physical_to_qt_point(-960, 540)
+
+        self.assertEqual(point, QPoint(-960, 540))
+
     def test_qt_virtual_screen_rect_uses_qt_screen_geometries(self) -> None:
         mapper = ScreenCoordinateMapper()
         screens = [

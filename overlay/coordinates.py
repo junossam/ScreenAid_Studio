@@ -3,7 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import QPoint, QRect
 from PySide6.QtGui import QGuiApplication, QScreen
 
-from monitor.manager import virtual_screen_qrect
+from monitor.manager import virtual_screen_qrect, virtual_screen_rect
 from utils.winapi import display_monitor_infos, monitor_info_from_point
 
 
@@ -86,15 +86,26 @@ class ScreenCoordinateMapper:
                     return screen
 
         physical = monitor.rcMonitor
-        monitor_width = max(1, physical.right - physical.left)
-        monitor_height = max(1, physical.bottom - physical.top)
+        physical_virtual = virtual_screen_rect()
+        physical_fraction = self._fraction_in_rect(
+            (physical.left + physical.right) / 2,
+            (physical.top + physical.bottom) / 2,
+            physical_virtual.left,
+            physical_virtual.top,
+            physical_virtual.width,
+            physical_virtual.height,
+        )
+        qt_virtual = self.qt_virtual_screen_rect()
+
         best_screen = None
         best_score = None
         for screen in screens:
             geometry = screen.geometry()
-            scale_x = monitor_width / max(1, geometry.width())
-            scale_y = monitor_height / max(1, geometry.height())
-            score = abs(scale_x - scale_y) + abs(scale_x - screen.devicePixelRatio())
+            center = geometry.center()
+            qt_fraction = self._fraction_in_rect(
+                center.x(), center.y(), qt_virtual.left(), qt_virtual.top(), qt_virtual.width(), qt_virtual.height()
+            )
+            score = abs(qt_fraction[0] - physical_fraction[0]) + abs(qt_fraction[1] - physical_fraction[1])
             if best_score is None or score < best_score:
                 best_score = score
                 best_screen = screen
@@ -112,15 +123,26 @@ class ScreenCoordinateMapper:
                     return monitor
 
         geometry = screen.geometry()
+        qt_virtual = self.qt_virtual_screen_rect()
+        center = geometry.center()
+        qt_fraction = self._fraction_in_rect(
+            center.x(), center.y(), qt_virtual.left(), qt_virtual.top(), qt_virtual.width(), qt_virtual.height()
+        )
+        physical_virtual = virtual_screen_rect()
+
         best_monitor = None
         best_score = None
         for monitor in monitors:
             physical = monitor.rcMonitor
-            monitor_width = max(1, physical.right - physical.left)
-            monitor_height = max(1, physical.bottom - physical.top)
-            scale_x = monitor_width / max(1, geometry.width())
-            scale_y = monitor_height / max(1, geometry.height())
-            score = abs(scale_x - scale_y) + abs(scale_x - screen.devicePixelRatio())
+            physical_fraction = self._fraction_in_rect(
+                (physical.left + physical.right) / 2,
+                (physical.top + physical.bottom) / 2,
+                physical_virtual.left,
+                physical_virtual.top,
+                physical_virtual.width,
+                physical_virtual.height,
+            )
+            score = abs(qt_fraction[0] - physical_fraction[0]) + abs(qt_fraction[1] - physical_fraction[1])
             if best_score is None or score < best_score:
                 best_score = score
                 best_monitor = monitor
@@ -148,6 +170,19 @@ class ScreenCoordinateMapper:
     @staticmethod
     def _normalize_screen_name(name: str) -> str:
         return name.replace("\\\\.\\", "").replace("\\", "").strip().lower()
+
+    @staticmethod
+    def _fraction_in_rect(
+        x: float, y: float, left: int, top: int, width: int, height: int
+    ) -> tuple[float, float]:
+        # Matches monitors by where they sit in the virtual desktop rather
+        # than by scale factor - two monitors with identical resolution and
+        # scaling score identically on scale alone, which used to make the
+        # fallback (device-name matching failed) always pick the same
+        # screen regardless of which monitor a point was actually on.
+        fx = (x - left) / width if width else 0.0
+        fy = (y - top) / height if height else 0.0
+        return fx, fy
 
     @staticmethod
     def _bounding_rect(points: tuple[QPoint, QPoint, QPoint, QPoint]) -> QRect:
