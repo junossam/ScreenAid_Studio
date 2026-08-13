@@ -20,22 +20,36 @@ class PackagingConfigTests(unittest.TestCase):
         self.assertIn("resources\" / \"tray_icon.ico", spec)
         self.assertIn("datas=[]", spec)
         self.assertIn("pyi_rth_screenaid_paths.py", spec)
+        self.assertIn('manifest=str(ROOT / "app.manifest")', spec)
         self.assertIn("ScreenAidStudio.exe", build_script)
         self.assertIn("requirements-build.txt", build_script)
         self.assertIn("PyInstaller", build_script)
         self.assertIn("--contents-directory internal", build_script)
+        self.assertIn("--manifest (Join-Path $PSScriptRoot 'app.manifest')", build_script)
         self.assertIn("config\\settings.ini", build_script)
         self.assertIn("locales\\*.ini", build_script)
         self.assertIn("resources\\click_indicators\\*.png", build_script)
         self.assertIn("docs\\*.html", build_script)
         self.assertIn("docs\\manual.css", build_script)
         self.assertIn("'LICENSE', 'portable.flag'", build_script)
-        self.assertIn("FileVersion', '0.2.1.2", version_info)
+        self.assertIn("FileVersion', '0.2.2.0", version_info)
         self.assertIn("CompanyName', 'JunoSsam", version_info)
 
     def test_portable_flag_and_build_requirements_exist(self) -> None:
         self.assertTrue((ROOT / "portable.flag").exists())
         self.assertIn("PyInstaller", (ROOT / "requirements-build.txt").read_text(encoding="utf-8"))
+
+    def test_app_manifest_declares_per_monitor_dpi_awareness(self) -> None:
+        manifest = (ROOT / "app.manifest").read_text(encoding="utf-8")
+
+        # A fallback list (not just the runtime SetProcessDpiAwarenessContext call in
+        # core/dpi.py) so a secondary monitor with a different scale factor still maps
+        # input/capture coordinates correctly even on Windows versions/configurations
+        # that don't support PerMonitorV2.
+        self.assertIn("<dpiAwareness", manifest)
+        self.assertIn("PerMonitorV2, PerMonitor", manifest)
+        self.assertIn("<dpiAware", manifest)
+        self.assertIn("true/pm", manifest)
 
     def test_default_build_opens_settings_window_on_startup(self) -> None:
         defaults = (ROOT / "config" / "settings.ini").read_text(encoding="utf-8")

@@ -29,6 +29,7 @@ if ($LASTEXITCODE -ne 0) {
     --contents-directory internal `
     --icon (Join-Path $PSScriptRoot 'resources\tray_icon.ico') `
     --version-file (Join-Path $PSScriptRoot 'version_info.txt') `
+    --manifest (Join-Path $PSScriptRoot 'app.manifest') `
     --runtime-hook (Join-Path $PSScriptRoot 'hooks\pyi_rth_screenaid_paths.py') `
     --specpath (Join-Path $buildTemp 'spec') `
     --exclude-module PySide6.QtQml `

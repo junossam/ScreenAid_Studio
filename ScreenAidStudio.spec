@@ -37,6 +37,7 @@ exe = EXE(
     entitlements_file=None,
     icon=str(ROOT / "resources" / "tray_icon.ico"),
     version=str(ROOT / "version_info.txt"),
+    manifest=str(ROOT / "app.manifest"),
     uac_admin=False,
 )
 

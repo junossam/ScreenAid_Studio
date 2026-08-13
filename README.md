@@ -6,7 +6,7 @@ ScreenAid Studio는 발표, 수업, 온라인 강의, 화면 시연을 위한 Wi
 ## 기본 정보
 
 - 프로그램명: ScreenAid Studio
-- 현재 배포 기준 버전: 0.2.1.2
+- 현재 배포 기준 버전: 0.2.2.0
 - 운영체제: Windows 10 / Windows 11, 64bit
 - 개발 언어: Python
 - 라이선스: MIT License
