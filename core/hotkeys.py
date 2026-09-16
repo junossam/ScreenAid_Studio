@@ -12,6 +12,7 @@ from utils.winapi import WM_HOTKEY, user32
 
 MOD_ALT = 0x0001
 MOD_CONTROL = 0x0002
+MOD_SHIFT = 0x0004
 HOTKEY_COMMAND_MODE = 1
 HOTKEY_TOGGLE_CLICK_EFFECTS = 2
 VK_SPACE = 0x20
@@ -168,6 +169,8 @@ def parse_hotkey(text: str) -> tuple[int, int] | None:
             modifiers |= MOD_CONTROL
         elif part == "ALT":
             modifiers |= MOD_ALT
+        elif part == "SHIFT":
+            modifiers |= MOD_SHIFT
         elif part in KEY_NAME_TO_VK:
             key = KEY_NAME_TO_VK[part]
         else:

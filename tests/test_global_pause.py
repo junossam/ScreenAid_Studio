@@ -5,7 +5,7 @@ from pathlib import Path
 
 from application.state_store import ApplicationStateStore
 from core.command_mode import parse_command_key
-from core.hotkeys import MOD_ALT, MOD_CONTROL, VK_D, VK_E, VK_F, VK_J, VK_O, VK_SPACE, parse_hotkey
+from core.hotkeys import MOD_ALT, MOD_CONTROL, MOD_SHIFT, VK_A, VK_D, VK_E, VK_F, VK_J, VK_O, VK_SPACE, parse_hotkey
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,6 +50,10 @@ class GlobalPauseTest(unittest.TestCase):
         self.assertEqual(parse_hotkey("Control + Alt + Space"), (MOD_CONTROL | MOD_ALT, VK_SPACE))
         self.assertIsNone(parse_hotkey(""))
         self.assertIsNone(parse_hotkey("Ctrl+Alt+Unknown"))
+
+    def test_hotkey_parser_accepts_shift_modifier(self) -> None:
+        self.assertEqual(parse_hotkey("Ctrl+Shift+A"), (MOD_CONTROL | MOD_SHIFT, VK_A))
+        self.assertEqual(parse_hotkey("Shift+Alt+A"), (MOD_SHIFT | MOD_ALT, VK_A))
 
     def test_command_mode_parser_accepts_single_keys(self) -> None:
         self.assertEqual(parse_command_key("D"), VK_D)
