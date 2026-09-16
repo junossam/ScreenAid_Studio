@@ -84,17 +84,34 @@ class PinnedWindowManager(Service):
             return
         if self._selection:
             self._selection.close()
-        self._selection = RegionSelectionOverlay(self.bus, self.settings.region_selection, self._region_selected)
+        self._selection = RegionSelectionOverlay(
+            self.bus, self.settings.region_selection, self._region_selected, freeze_background=True
+        )
         self._selection.begin()
 
     def _region_selected(self, rect: QRect | None) -> None:
+        overlay = self._selection
+        rect = rect.normalized() if rect is not None else None
+        result = None
+        if overlay is not None and rect is not None and not rect.isNull():
+            result = overlay.frozen_capture_result(rect)
         if self._selection:
             self._selection.deleteLater()
             self._selection = None
-        if rect is None or rect.normalized().isNull():
+        if rect is None or rect.isNull():
             return
+        if result is not None:
+            self._last_result = result
+            self._open_image(
+                result.image,
+                self._display_size_for_rect(result.virtual_rect),
+                self._position_for_rect(result.virtual_rect),
+            )
+            return
+        # Frozen background unavailable (capture failed) - fall back to a
+        # fresh live grab, same as before this overlay could freeze.
         self.bus.publish("overlay.capture_visuals.suspended", source="pinned_capture", suspended=True)
-        QTimer.singleShot(50, lambda: self._capture_selected_region(rect.normalized()))
+        QTimer.singleShot(50, lambda: self._capture_selected_region(rect))
 
     def _capture_selected_region(self, rect: QRect) -> None:
         try:

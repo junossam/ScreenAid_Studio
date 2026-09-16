@@ -1,15 +1,30 @@
 from __future__ import annotations
 
+import ctypes
 from collections.abc import Callable
+from datetime import datetime
 
-from PySide6.QtCore import QObject, QPoint, QRect, Qt
-from PySide6.QtGui import QColor, QCursor, QFont, QGuiApplication, QPainter, QPen
+from PySide6.QtCore import QObject, QPoint, QRect, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QCursor, QFont, QGuiApplication, QImage, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QWidget
 
+from capture.gdi import GdiCaptureBackend
+from capture.models import CaptureRequest, CaptureResult, CaptureType
 from config.settings import RegionSelectionSettings
 from core.event_bus import Event, EventBus, Subscription
+from monitor.manager import virtual_screen_qrect
 from mouse.events import MouseEvent, MouseEventType
 from overlay.coordinates import ScreenCoordinateMapper
+from utils.winapi import (
+    HC_ACTION,
+    KBDLLHOOKSTRUCT,
+    LowLevelKeyboardProc,
+    VK_ESCAPE,
+    WH_KEYBOARD_LL,
+    WM_KEYDOWN,
+    WM_SYSKEYDOWN,
+    user32,
+)
 
 
 SelectionCallback = Callable[[QRect | None], None]
@@ -29,24 +44,104 @@ class RegionSelectionOverlay(QObject):
     result is correct regardless of which monitor(s) the drag crosses.
     """
 
-    def __init__(self, bus: EventBus, settings: RegionSelectionSettings, on_done: SelectionCallback) -> None:
+    _escape_pressed = Signal()
+
+    def __init__(
+        self,
+        bus: EventBus,
+        settings: RegionSelectionSettings,
+        on_done: SelectionCallback,
+        freeze_background: bool = False,
+    ) -> None:
         super().__init__()
         self.bus = bus
         self.settings = settings
         self.on_done = on_done
+        self._freeze_background = freeze_background
         self._coordinates = ScreenCoordinateMapper()
         self._windows: list[_MonitorSelectionWindow] = []
         self._start: QPoint | None = None
         self._current: QPoint | None = None
         self._completed = False
         self._subscription: Subscription | None = None
+        self._hook = None
+        self._keyboard_proc = LowLevelKeyboardProc(self._keyboard_callback)
+        self._escape_pressed.connect(self.cancel, Qt.ConnectionType.QueuedConnection)
+        self._frozen_image: QImage | None = None
+        self._frozen_origin = QPoint(0, 0)
 
     def begin(self) -> None:
         self._start = None
         self._current = None
         self._completed = False
+        self._frozen_image = None
+        self._frozen_origin = QPoint(0, 0)
+        if self._freeze_background:
+            # Snapshot the whole virtual desktop *before* any selection
+            # window appears, then use that frozen bitmap (not a fresh
+            # live grab) as both the drag preview and the final crop. A
+            # fresh grab taken after the drag would already show whatever
+            # popup the user is trying to capture as closed, because
+            # starting the drag requires a real mouse-down click, and
+            # Win32 popups (combobox/dropdown menus, Excel's AutoFilter,
+            # ...) dismiss themselves on any outside click - regardless of
+            # which window that click lands on. Freezing first sidesteps
+            # this entirely: the pixels are already captured before that
+            # dismissing click ever happens.
+            self.bus.publish("overlay.capture_visuals.suspended", source="region_selection", suspended=True)
+            QTimer.singleShot(50, self._begin_after_freeze)
+        else:
+            self._begin_now()
+
+    def _begin_after_freeze(self) -> None:
+        if self._completed:
+            return
+        self._capture_frozen_background()
+        self.bus.publish("overlay.capture_visuals.suspended", source="region_selection", suspended=False)
+        self._begin_now()
+
+    def _begin_now(self) -> None:
+        if self._completed:
+            return
         self._create_windows()
         self._subscription = self.bus.subscribe("mouse.event", self._handle_mouse_event)
+        self._install_hook()
+
+    def _capture_frozen_background(self) -> None:
+        try:
+            virtual_rect = virtual_screen_qrect()
+            request = CaptureRequest(CaptureType.REGION, virtual_rect, include_annotations=False)
+            result = GdiCaptureBackend().capture_region(request)
+        except Exception:
+            self._frozen_image = None
+            return
+        self._frozen_image = result.image
+        self._frozen_origin = virtual_rect.topLeft()
+
+    def crop_frozen(self, rect: QRect) -> QImage | None:
+        if self._frozen_image is None:
+            return None
+        local_rect = QRect(rect).translated(-self._frozen_origin).intersected(self._frozen_image.rect())
+        if local_rect.isEmpty():
+            return None
+        return self._frozen_image.copy(local_rect)
+
+    def frozen_capture_result(self, rect: QRect) -> CaptureResult | None:
+        cropped = self.crop_frozen(rect)
+        if cropped is None:
+            return None
+        return CaptureResult(
+            capture_type=CaptureType.REGION,
+            image=cropped,
+            virtual_rect=rect,
+            width=cropped.width(),
+            height=cropped.height(),
+            dpi_x=96,
+            dpi_y=96,
+            captured_at=datetime.now(),
+            includes_annotations=False,
+            includes_cursor=False,
+        )
 
     def close(self) -> None:
         self._teardown()
@@ -72,15 +167,36 @@ class RegionSelectionOverlay(QObject):
         focus_screen = QGuiApplication.screenAt(cursor) or QGuiApplication.primaryScreen()
         focus_window: _MonitorSelectionWindow | None = None
         for screen in QGuiApplication.screens():
-            window = _MonitorSelectionWindow(screen, self.settings, self)
+            background = self._background_pixmap_for_screen(screen)
+            window = _MonitorSelectionWindow(screen, self.settings, self, background)
             self._windows.append(window)
             window.show()
             if screen is focus_screen:
                 focus_window = window
         if focus_window is not None:
+            # No activateWindow()/setFocus() here on purpose: stealing the
+            # foreground activation would close whatever popup (combobox
+            # dropdown, context menu, ...) the user is trying to capture,
+            # since Win32 popups auto-dismiss when their owner loses
+            # activation. The windows carry WindowDoesNotAcceptFocus
+            # (WS_EX_NOACTIVATE) so showing/raising them can't activate them
+            # either; Escape-to-cancel is handled via a low-level keyboard
+            # hook instead of Qt focus-based key events.
             focus_window.raise_()
-            focus_window.activateWindow()
-            focus_window.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
+
+    def _background_pixmap_for_screen(self, screen) -> QPixmap | None:
+        if self._frozen_image is None:
+            return None
+        physical_rect = self._coordinates.qt_to_physical_rect(QRect(screen.geometry()))
+        source_rect = physical_rect.translated(-self._frozen_origin).intersected(self._frozen_image.rect())
+        if source_rect.isEmpty():
+            return None
+        cropped = self._frozen_image.copy(source_rect)
+        logical_size = screen.geometry().size()
+        scaled = cropped.scaled(
+            logical_size, Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation
+        )
+        return QPixmap.fromImage(scaled)
 
     def _destroy_windows(self) -> None:
         for window in self._windows:
@@ -125,14 +241,41 @@ class RegionSelectionOverlay(QObject):
         if self._subscription is not None:
             self.bus.unsubscribe(self._subscription)
             self._subscription = None
+        self._uninstall_hook()
         self._destroy_windows()
+
+    def _install_hook(self) -> None:
+        if self._hook:
+            return
+        self._hook = user32.SetWindowsHookExW(WH_KEYBOARD_LL, self._keyboard_proc, None, 0)
+
+    def _uninstall_hook(self) -> None:
+        if not self._hook:
+            return
+        user32.UnhookWindowsHookEx(self._hook)
+        self._hook = None
+
+    def _keyboard_callback(self, code: int, wparam: int, lparam: int) -> int:
+        if code == HC_ACTION and wparam in {WM_KEYDOWN, WM_SYSKEYDOWN}:
+            data = ctypes.cast(lparam, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
+            if int(data.vkCode) == VK_ESCAPE:
+                self._escape_pressed.emit()
+                return 1
+        return user32.CallNextHookEx(self._hook, code, wparam, lparam)
 
 
 class _MonitorSelectionWindow(QWidget):
-    def __init__(self, screen, settings: RegionSelectionSettings, coordinator: RegionSelectionOverlay) -> None:
+    def __init__(
+        self,
+        screen,
+        settings: RegionSelectionSettings,
+        coordinator: RegionSelectionOverlay,
+        background: QPixmap | None = None,
+    ) -> None:
         super().__init__()
         self.settings = settings
         self._coordinator = coordinator
+        self._background_pixmap = background
         self._coordinates = ScreenCoordinateMapper()
         self._is_primary = screen is QGuiApplication.primaryScreen()
         self.setScreen(screen)
@@ -140,12 +283,20 @@ class _MonitorSelectionWindow(QWidget):
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
         self.setWindowFlag(Qt.WindowType.Tool, True)
         self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
+        # Never take keyboard focus / foreground activation (maps to
+        # WS_EX_NOACTIVATE): showing/raising this window must not close
+        # whatever popup the user is about to capture. See the comment in
+        # RegionSelectionOverlay._create_windows.
+        self.setWindowFlag(Qt.WindowType.WindowDoesNotAcceptFocus, True)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
         self.setMouseTracking(True)
         self.setCursor(Qt.CursorShape.CrossCursor)
 
     def paintEvent(self, _event) -> None:
         painter = QPainter(self)
+        if self._background_pixmap is not None:
+            painter.drawPixmap(0, 0, self._background_pixmap)
         painter.fillRect(self.rect(), QColor(0, 0, 0, self.settings.dark_overlay_opacity))
         selection = self._coordinator.selection_rect_qt()
         if selection is None:
@@ -153,9 +304,15 @@ class _MonitorSelectionWindow(QWidget):
                 self._paint_hint(painter)
             return
         local = selection.translated(-self.geometry().topLeft())
-        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
-        painter.fillRect(local, QColor(0, 0, 0, 0))
-        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+        if self._background_pixmap is not None:
+            # Reveal the crisp, un-dimmed frozen pixels inside the
+            # selection instead of clearing to transparency - there is no
+            # live desktop underneath to show through anymore.
+            painter.drawPixmap(local, self._background_pixmap, local)
+        else:
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+            painter.fillRect(local, QColor(0, 0, 0, 0))
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
         painter.setPen(QPen(QColor("#00a6ff"), self.settings.border_width))
         painter.drawRect(local.adjusted(0, 0, -1, -1))
         if self.settings.show_size and self._contains_qt_point(self._coordinator.active_end_point_qt()):
@@ -169,13 +326,6 @@ class _MonitorSelectionWindow(QWidget):
 
     def mouseReleaseEvent(self, event) -> None:
         event.accept()
-
-    def keyPressEvent(self, event) -> None:
-        if event.key() == Qt.Key.Key_Escape:
-            self._coordinator.cancel()
-            event.accept()
-            return
-        super().keyPressEvent(event)
 
     def _contains_qt_point(self, point: QPoint | None) -> bool:
         if point is None:
