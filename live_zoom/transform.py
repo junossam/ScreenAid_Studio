@@ -44,3 +44,48 @@ def fullscreen_offset(
         anchor_y - mon_center_y / scale, mon_top * (1 - 1 / scale), mon_bottom * (1 - 1 / scale)
     )
     return round(x_offset), round(y_offset)
+
+
+def dead_zone_anchor(
+    prev_anchor_x: float,
+    prev_anchor_y: float,
+    cursor_x: int,
+    cursor_y: int,
+    monitor_rect: tuple[int, int, int, int],
+    scale: float,
+    dead_zone_fraction: float,
+) -> tuple[float, float]:
+    """Next anchor for a "camera dead zone" pan: the view only moves once the
+    cursor's ON-SCREEN position (as rendered through the current transform)
+    would leave a box of size `monitor size * dead_zone_fraction` centered on
+    the monitor. Inside that box the anchor - and therefore the view - stays
+    put, so small mouse movements near the middle of the screen no longer
+    drag the whole picture; the view only pans once the cursor pushes against
+    the box edge, and then only just enough to keep the cursor pinned there.
+
+    Since the real cursor is left alone (see LiveZoomService docstring), its
+    displayed position is exactly what MagSetFullscreenTransform's own
+    mapping produces: displayed = scale * (real_pos - anchor) + mon_center.
+    Solving that for anchor at a box edge gives the panning anchor below.
+    """
+    mon_left, mon_top, mon_right, mon_bottom = monitor_rect
+    mon_center_x = (mon_left + mon_right) / 2
+    mon_center_y = (mon_top + mon_bottom) / 2
+    half_w = (mon_right - mon_left) * dead_zone_fraction / 2
+    half_h = (mon_bottom - mon_top) * dead_zone_fraction / 2
+
+    anchor_x = prev_anchor_x
+    displayed_x = scale * (cursor_x - prev_anchor_x) + mon_center_x
+    if displayed_x < mon_center_x - half_w:
+        anchor_x = cursor_x + half_w / scale
+    elif displayed_x > mon_center_x + half_w:
+        anchor_x = cursor_x - half_w / scale
+
+    anchor_y = prev_anchor_y
+    displayed_y = scale * (cursor_y - prev_anchor_y) + mon_center_y
+    if displayed_y < mon_center_y - half_h:
+        anchor_y = cursor_y + half_h / scale
+    elif displayed_y > mon_center_y + half_h:
+        anchor_y = cursor_y - half_h / scale
+
+    return anchor_x, anchor_y

@@ -5,7 +5,7 @@ import ctypes
 from config.settings import LiveZoomSettings
 from core.event_bus import Event, EventBus, Subscription
 from core.service import Service
-from live_zoom.transform import clamp, fullscreen_offset
+from live_zoom.transform import clamp, dead_zone_anchor, fullscreen_offset
 from utils.winapi import (
     HC_ACTION,
     KBDLLHOOKSTRUCT,
@@ -37,6 +37,14 @@ class LiveZoomService(Service):
     updates are driven by real pointer movement rather than a fixed-interval
     poll. Escape exits.
 
+    The view only pans once the cursor's on-screen position pushes past a
+    dead zone centered on the monitor (see live_zoom.transform.dead_zone_anchor)
+    - moving the mouse near the middle of the screen no longer drags the
+    whole picture with it, which is what made the plain cursor-centering
+    version disorienting. self._anchor_x/_anchor_y is the source-space point
+    currently mapped to the monitor's center and persists across mouse-move
+    events so the dead zone has something to measure against.
+
     The mouse/keyboard hooks are only installed while zoom is active, so
     normal scrolling/Escape behavior elsewhere is untouched, and they coexist
     safely with mouse.hook.GlobalMouseHook's own always-on WH_MOUSE_LL hook -
@@ -52,6 +60,8 @@ class LiveZoomService(Service):
         self.bus = bus
         self._active = False
         self._scale = settings.default_scale
+        self._anchor_x = 0.0
+        self._anchor_y = 0.0
         self._initialized = False
         self._mouse_hook = None
         self._keyboard_hook = None
@@ -116,8 +126,26 @@ class LiveZoomService(Service):
         self._apply_transform(point.x, point.y)
 
     def _apply_transform(self, anchor_x: int, anchor_y: int) -> None:
+        self._anchor_x, self._anchor_y = anchor_x, anchor_y
         monitor_rect = self._monitor_rect_at(anchor_x, anchor_y)
         x_offset, y_offset = fullscreen_offset(anchor_x, anchor_y, monitor_rect, self._scale)
+        mag_set_fullscreen_transform(self._scale, x_offset, y_offset)
+
+    def _pan_to_cursor(self, cursor_x: int, cursor_y: int) -> None:
+        """Dead-zone-aware counterpart of _apply_transform for plain cursor
+        movement: only updates the anchor (and therefore the view) once the
+        cursor pushes past the dead zone, instead of recentering on it."""
+        monitor_rect = self._monitor_rect_at(cursor_x, cursor_y)
+        self._anchor_x, self._anchor_y = dead_zone_anchor(
+            self._anchor_x,
+            self._anchor_y,
+            cursor_x,
+            cursor_y,
+            monitor_rect,
+            self._scale,
+            self.settings.dead_zone_scale,
+        )
+        x_offset, y_offset = fullscreen_offset(self._anchor_x, self._anchor_y, monitor_rect, self._scale)
         mag_set_fullscreen_transform(self._scale, x_offset, y_offset)
 
     @staticmethod
@@ -145,7 +173,7 @@ class LiveZoomService(Service):
                 # Not consumed (falls through to CallNextHookEx below) -
                 # normal pointer movement everywhere else must keep working.
                 data = ctypes.cast(lparam, ctypes.POINTER(MSLLHOOKSTRUCT)).contents
-                self._apply_transform(data.pt.x, data.pt.y)
+                self._pan_to_cursor(data.pt.x, data.pt.y)
         return user32.CallNextHookEx(self._mouse_hook, code, wparam, lparam)
 
     def _keyboard_callback(self, code: int, wparam: int, lparam: int) -> int:

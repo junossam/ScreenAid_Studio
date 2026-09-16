@@ -151,6 +151,7 @@ def _load_windows(dialog) -> None:
     dialog.live_zoom_max_scale.setValue(dialog._float("live_zoom", "max_scale", 8.0))
     dialog.live_zoom_default_scale.setValue(dialog._float("live_zoom", "default_scale", 2.0))
     dialog.live_zoom_wheel_step.setValue(dialog._float("live_zoom", "wheel_step", 0.25))
+    dialog.live_zoom_dead_zone_scale.setValue(dialog._float("live_zoom", "dead_zone_scale", 0.5))
 
 
 def _load_region_and_keys(dialog) -> None:
@@ -292,6 +293,7 @@ def _save_windows(dialog) -> None:
     dialog._set("live_zoom", "max_scale", dialog.live_zoom_max_scale.value())
     dialog._set("live_zoom", "default_scale", dialog.live_zoom_default_scale.value())
     dialog._set("live_zoom", "wheel_step", dialog.live_zoom_wheel_step.value())
+    dialog._set("live_zoom", "dead_zone_scale", dialog.live_zoom_dead_zone_scale.value())
 
 
 def _resolve_fps_range(dialog) -> tuple[int, int]:

@@ -179,6 +179,7 @@ class LiveZoomSettings:
     max_scale: float
     default_scale: float
     wheel_step: float
+    dead_zone_scale: float
 
 
 @dataclass(frozen=True)
@@ -389,5 +390,6 @@ class Settings:
                 max_scale=parser.getfloat("live_zoom", "max_scale", fallback=8.0),
                 default_scale=parser.getfloat("live_zoom", "default_scale", fallback=2.0),
                 wheel_step=parser.getfloat("live_zoom", "wheel_step", fallback=0.25),
+                dead_zone_scale=parser.getfloat("live_zoom", "dead_zone_scale", fallback=0.5),
             ),
         )

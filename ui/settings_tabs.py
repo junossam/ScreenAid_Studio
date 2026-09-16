@@ -282,11 +282,13 @@ def build_windows_tab(dialog) -> QWidget:
     dialog.live_zoom_max_scale = dialog._double_spin(1.0, 8.0, 0.25)
     dialog.live_zoom_default_scale = dialog._double_spin(1.0, 8.0, 0.25)
     dialog.live_zoom_wheel_step = dialog._double_spin(0.05, 2.0, 0.05)
+    dialog.live_zoom_dead_zone_scale = dialog._double_spin(0.1, 1.0, 0.05)
     layout.addRow(tr("settings.enable_live_zoom"), dialog.live_zoom_enabled)
     layout.addRow(tr("settings.live_zoom_min_scale"), dialog.live_zoom_min_scale)
     layout.addRow(tr("settings.live_zoom_max_scale"), dialog.live_zoom_max_scale)
     layout.addRow(tr("settings.live_zoom_default_scale"), dialog.live_zoom_default_scale)
     layout.addRow(tr("settings.live_zoom_wheel_step"), dialog.live_zoom_wheel_step)
+    layout.addRow(tr("settings.live_zoom_dead_zone_scale"), dialog.live_zoom_dead_zone_scale)
     outer.addWidget(live_zoom_group)
 
     outer.addStretch(1)

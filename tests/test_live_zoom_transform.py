@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from live_zoom.transform import clamp, fullscreen_offset
+from live_zoom.transform import clamp, dead_zone_anchor, fullscreen_offset
 
 
 class LiveZoomTransformTests(unittest.TestCase):
@@ -38,6 +38,29 @@ class LiveZoomTransformTests(unittest.TestCase):
         x_offset, y_offset = fullscreen_offset(-960, 540, second_monitor, 4.0)
         self.assertGreaterEqual(x_offset, second_monitor[0])
         self.assertLessEqual(x_offset, second_monitor[2])
+
+    def test_dead_zone_anchor_holds_still_inside_the_box(self) -> None:
+        anchor = dead_zone_anchor(960, 540, 970, 545, self.MONITOR, 2.0, 0.5)
+        self.assertEqual(anchor, (960, 540))
+
+    def test_dead_zone_anchor_pans_only_once_cursor_pushes_past_the_right_edge(self) -> None:
+        anchor_x, anchor_y = dead_zone_anchor(960, 540, 1300, 540, self.MONITOR, 2.0, 0.5)
+        self.assertEqual((anchor_x, anchor_y), (1060, 540))
+        # the cursor should now sit exactly on the dead zone's right edge, not past it.
+        displayed_x = 2.0 * (1300 - anchor_x) + 960
+        self.assertEqual(displayed_x, 1440)
+
+    def test_dead_zone_anchor_pans_only_once_cursor_pushes_past_the_left_edge(self) -> None:
+        anchor_x, anchor_y = dead_zone_anchor(960, 540, 620, 540, self.MONITOR, 2.0, 0.5)
+        self.assertEqual((anchor_x, anchor_y), (860, 540))
+        displayed_x = 2.0 * (620 - anchor_x) + 960
+        self.assertEqual(displayed_x, 480)
+
+    def test_dead_zone_anchor_axes_are_independent(self) -> None:
+        # x stays inside the box while y pushes past the bottom edge.
+        anchor_x, anchor_y = dead_zone_anchor(960, 540, 970, 900, self.MONITOR, 2.0, 0.5)
+        self.assertEqual(anchor_x, 960)
+        self.assertEqual(anchor_y, 765)
 
 
 if __name__ == "__main__":
