@@ -270,9 +270,11 @@ def build_windows_tab(dialog) -> QWidget:
     dialog.magnifier_enabled = QCheckBox()
     dialog.magnifier_scale = dialog._double_spin(1.1, 5.0, 0.1)
     dialog.magnifier_keep_drawings = QCheckBox()
+    dialog.magnifier_dead_zone_scale = dialog._double_spin(0.1, 1.0, 0.05)
     layout.addRow(tr("settings.enable_magnifier"), dialog.magnifier_enabled)
     layout.addRow(tr("settings.magnifier_scale"), dialog.magnifier_scale)
     layout.addRow(tr("settings.magnifier_keep_drawings"), dialog.magnifier_keep_drawings)
+    layout.addRow(tr("settings.magnifier_dead_zone_scale"), dialog.magnifier_dead_zone_scale)
     outer.addWidget(magnifier_group)
 
     live_zoom_group = QGroupBox(tr("settings.tab.live_zoom"))

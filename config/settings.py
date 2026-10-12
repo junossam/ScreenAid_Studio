@@ -170,6 +170,7 @@ class MagnifierSettings:
     scale: float
     size: int
     keep_drawings_on_close: bool
+    dead_zone_scale: float
 
 
 @dataclass(frozen=True)
@@ -383,6 +384,7 @@ class Settings:
                 scale=parser.getfloat("magnifier", "scale", fallback=2.0),
                 size=parser.getint("magnifier", "size", fallback=260),
                 keep_drawings_on_close=parser.getboolean("magnifier", "keep_drawings_on_close", fallback=False),
+                dead_zone_scale=parser.getfloat("magnifier", "dead_zone_scale", fallback=0.5),
             ),
             live_zoom=LiveZoomSettings(
                 enabled=parser.getboolean("live_zoom", "enabled", fallback=True),

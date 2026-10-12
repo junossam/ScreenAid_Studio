@@ -3,7 +3,18 @@ from __future__ import annotations
 from dataclasses import replace
 
 from PySide6.QtCore import QDateTime, QEasingCurve, QPoint, QPointF, QRect, QRectF, QTimer, Qt
-from PySide6.QtGui import QColor, QCursor, QGuiApplication, QImage, QKeySequence, QPainter, QPainterPathStroker, QShortcut
+from PySide6.QtGui import (
+    QColor,
+    QCursor,
+    QGuiApplication,
+    QImage,
+    QKeySequence,
+    QPainter,
+    QPainterPathStroker,
+    QPen,
+    QPolygonF,
+    QShortcut,
+)
 from PySide6.QtWidgets import QWidget
 
 from config.settings import DrawingSettings, EraserSettings, MagnifierSettings
@@ -15,14 +26,35 @@ from drawing.geometry import curve_path
 from drawing.renderer import ShapeRenderer
 from drawing.shapes import Shape, ShapeType
 from drawing.tools import DrawingTool, create_tool
+from live_zoom.transform import dead_zone_anchor
 
 
 class FullscreenMagnifierWindow(QWidget):
+    """Zoomed view of a screenshot of the monitor under the cursor.
+
+    Like live zoom, panning uses a dead zone (see
+    live_zoom.transform.dead_zone_anchor): while the cursor's magnified
+    position stays inside a box centered on the monitor the view holds still,
+    and it only pans once the cursor pushes past the box edge. Because the
+    real cursor sits at its unmagnified position, the system cursor is hidden
+    and a pointer is painted where that position lands in the zoomed view.
+    """
+
     ANIMATION_MS = 260
     FRAME_MS = 16
     MIN_SCALE = 1.0
     MAX_SCALE = 5.0
     WHEEL_SCALE_STEP = 0.2
+    # Classic arrow pointer outline, tip at (0, 0), in logical pixels.
+    POINTER_SHAPE = (
+        QPointF(0, 0),
+        QPointF(0, 17),
+        QPointF(4.5, 13),
+        QPointF(7.5, 19.5),
+        QPointF(10, 18.5),
+        QPointF(7, 12),
+        QPointF(12.5, 12),
+    )
 
     def __init__(
         self,
@@ -39,6 +71,7 @@ class FullscreenMagnifierWindow(QWidget):
         self._screen_image = QImage()
         self._screen_rect = QRect()
         self._anchor = QPoint()
+        self._cursor = QPoint()
         self._progress = 0.0
         self._active_scale = self.MIN_SCALE
         self._closing = False
@@ -69,7 +102,6 @@ class FullscreenMagnifierWindow(QWidget):
         if screen is None:
             return
         self._screen_rect = screen.geometry()
-        self._anchor = cursor - self._screen_rect.topLeft()
         self._apply_cursor()
         self._screen_image = self._grab_screen_image()
         if self._screen_image.isNull():
@@ -81,6 +113,7 @@ class FullscreenMagnifierWindow(QWidget):
         self._elapsed_ms = 0
         self._progress = 0.0
         self._active_scale = self._clamp_scale(self.settings.scale)
+        self._center_on(cursor)
         self.setGeometry(self._screen_rect)
         self.show()
         self.raise_()
@@ -111,6 +144,8 @@ class FullscreenMagnifierWindow(QWidget):
             self._paint_magnified_shape(painter, preview, source)
         if self._drawing_active:
             self._paint_drawing_cursor(painter)
+        else:
+            self._paint_pointer(painter, source)
 
     def keyPressEvent(self, event) -> None:
         if event.key() == Qt.Key.Key_Escape:
@@ -155,7 +190,7 @@ class FullscreenMagnifierWindow(QWidget):
             self.update()
             event.accept()
             return
-        self._set_anchor_from_global(event.globalPosition().toPoint())
+        self._pan_to_cursor(event.globalPosition().toPoint())
         event.accept()
 
     def mouseReleaseEvent(self, event) -> None:
@@ -184,12 +219,11 @@ class FullscreenMagnifierWindow(QWidget):
         if self._closing:
             event.accept()
             return
-        self._set_anchor_from_global(event.globalPosition().toPoint())
         steps = event.angleDelta().y() / 120
         if steps:
             self._active_scale = self._clamp_scale(self._active_scale + steps * self.WHEEL_SCALE_STEP)
             self._progress = 1.0
-            self.update()
+        self._center_on(event.globalPosition().toPoint())
         event.accept()
 
     def closeEvent(self, event) -> None:
@@ -228,16 +262,51 @@ class FullscreenMagnifierWindow(QWidget):
             if cursor == self._ignore_follow_until_cursor_moves:
                 return
             self._ignore_follow_until_cursor_moves = None
-        self._set_anchor_from_global(cursor)
+        self._pan_to_cursor(cursor)
 
-    def _set_anchor_from_global(self, cursor: QPoint) -> None:
+    def _center_on(self, cursor: QPoint) -> None:
+        """Recenter the view on the cursor (opening, wheel zoom)."""
         if not self._screen_rect.contains(cursor):
             return
-        anchor = cursor - self._screen_rect.topLeft()
-        if anchor == self._anchor:
-            return
-        self._anchor = anchor
+        self._cursor = cursor - self._screen_rect.topLeft()
+        self._anchor = self._clamped_anchor(QPointF(self._cursor))
         self.update()
+
+    def _pan_to_cursor(self, cursor: QPoint) -> None:
+        """Dead-zone-aware counterpart of _center_on for plain cursor
+        movement: the view only pans once the cursor's magnified position
+        pushes past the dead zone, but the painted pointer always moves."""
+        if not self._screen_rect.contains(cursor):
+            return
+        local = cursor - self._screen_rect.topLeft()
+        if local == self._cursor:
+            return
+        self._cursor = local
+        anchor_x, anchor_y = dead_zone_anchor(
+            self._anchor.x(),
+            self._anchor.y(),
+            local.x(),
+            local.y(),
+            (0, 0, self._screen_rect.width(), self._screen_rect.height()),
+            self._clamp_scale(self._active_scale),
+            self.settings.dead_zone_scale,
+        )
+        self._anchor = self._clamped_anchor(QPointF(anchor_x, anchor_y))
+        self.update()
+
+    def _clamped_anchor(self, anchor: QPointF) -> QPoint:
+        # Keep the anchor where _source_rect would not need to clamp it, so the
+        # dead zone measures against the cursor's real on-screen position even
+        # near the monitor edges.
+        scale = self._clamp_scale(self._active_scale)
+        width = self._screen_rect.width()
+        height = self._screen_rect.height()
+        half_w = width / (2 * scale)
+        half_h = height / (2 * scale)
+        return QPoint(
+            round(self._clamp(anchor.x(), half_w, width - half_w)),
+            round(self._clamp(anchor.y(), half_h, height - half_h)),
+        )
 
     def set_drawing_active(self, active: bool) -> None:
         self._drawing_active = active
@@ -341,6 +410,22 @@ class FullscreenMagnifierWindow(QWidget):
         painter.drawEllipse(point, 6, 6)
         painter.setBrush(color)
         painter.drawEllipse(point, 3, 3)
+        painter.restore()
+
+    def _paint_pointer(self, painter: QPainter, source: QRectF) -> None:
+        if source.isNull() or self._screen_rect.isNull():
+            return
+        ratio_x = self._screen_image.width() / max(1, self._screen_rect.width())
+        ratio_y = self._screen_image.height() / max(1, self._screen_rect.height())
+        tip = QPointF(
+            (self._cursor.x() * ratio_x - source.left()) * self.width() / max(1.0, source.width()),
+            (self._cursor.y() * ratio_y - source.top()) * self.height() / max(1.0, source.height()),
+        )
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setPen(QPen(QColor("black"), 1.2))
+        painter.setBrush(QColor("white"))
+        painter.drawPolygon(QPolygonF([tip + point for point in self.POINTER_SHAPE]))
         painter.restore()
 
     def _apply_cursor(self) -> None:
