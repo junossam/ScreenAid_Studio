@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QMessageBox
 
+from config.settings import DRAWING_SHORTCUT_DEFAULTS
 from core.command_mode import parse_command_key
 from core.hotkeys import DEFAULT_HOTKEYS, parse_hotkey
 from core.localization import tr
@@ -168,6 +169,9 @@ def _load_region_and_keys(dialog) -> None:
     dialog.command_mode_timeout.setValue(dialog._int("command_mode", "timeout_ms", 5000))
     for name, field in dialog.command_key_fields.items():
         field.setText(dialog.parser.get("command_mode", name, fallback=COMMAND_KEY_DEFAULTS[name]))
+    dialog.drawing_shortcuts_enabled.setChecked(dialog._bool("drawing_shortcuts", "enabled", True))
+    for name, field in dialog.drawing_shortcut_fields.items():
+        field.setText(dialog.parser.get("drawing_shortcuts", name, fallback=DRAWING_SHORTCUT_DEFAULTS[name]))
 
 
 def _save_overlay(dialog) -> None:
@@ -321,7 +325,10 @@ def _save_region_and_keys(dialog) -> None:
     dialog._set("command_mode", "show_hint", dialog.command_mode_show_hint.isChecked())
     dialog._set("command_mode", "timeout_ms", dialog.command_mode_timeout.value())
     invalid_command_keys, duplicate_command_keys = _save_command_key_fields(dialog)
+    dialog._set("drawing_shortcuts", "enabled", dialog.drawing_shortcuts_enabled.isChecked())
+    invalid_drawing_keys, duplicate_drawing_keys = _save_drawing_shortcut_fields(dialog)
     _warn_about_rejected_keys(dialog, invalid_hotkeys, invalid_command_keys, duplicate_command_keys)
+    _warn_about_rejected_drawing_shortcuts(dialog, invalid_drawing_keys, duplicate_drawing_keys)
 
 
 def _save_hotkey_fields(dialog) -> list[str]:
@@ -360,6 +367,48 @@ def _save_command_key_fields(dialog) -> tuple[list[str], list[str]]:
             text = entered[name]
         dialog._set("command_mode", name, text)
     return invalid, duplicates
+
+
+def _save_drawing_shortcut_fields(dialog) -> tuple[list[str], list[str]]:
+    """Empty fields are allowed and leave that action unbound."""
+    entered = {name: field.text().strip() for name, field in dialog.drawing_shortcut_fields.items()}
+    parsed: dict[str, tuple[int, int]] = {}
+    invalid: list[str] = []
+    for name, text in entered.items():
+        if not text:
+            continue
+        value = parse_hotkey(text)
+        if value is None:
+            invalid.append(name)
+        else:
+            parsed[name] = value
+
+    counts: dict[tuple[int, int], int] = {}
+    for value in parsed.values():
+        counts[value] = counts.get(value, 0) + 1
+    duplicates = [name for name, value in parsed.items() if counts[value] > 1]
+
+    for name, field in dialog.drawing_shortcut_fields.items():
+        if name in invalid or name in duplicates:
+            text = dialog.parser.get("drawing_shortcuts", name, fallback=DRAWING_SHORTCUT_DEFAULTS[name])
+            field.setText(text)
+        else:
+            text = entered[name]
+        dialog._set("drawing_shortcuts", name, text)
+    return invalid, duplicates
+
+
+def _warn_about_rejected_drawing_shortcuts(dialog, invalid: list[str], duplicates: list[str]) -> None:
+    if not (invalid or duplicates):
+        return
+    lines = []
+    if invalid:
+        names = ", ".join(tr(f"drawing_shortcut.{name}") for name in invalid)
+        lines.append(f"{tr('settings.invalid_drawing_shortcuts')}: {names}")
+    if duplicates:
+        names = ", ".join(tr(f"drawing_shortcut.{name}") for name in duplicates)
+        lines.append(f"{tr('settings.duplicate_drawing_shortcuts')}: {names}")
+    QMessageBox.warning(dialog, tr("settings.title"), "\n".join(lines))
 
 
 def _warn_about_rejected_keys(

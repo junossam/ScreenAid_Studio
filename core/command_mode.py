@@ -163,7 +163,7 @@ class CommandModeService(Service):
             self._install_hook()
         if not self._hook:
             return
-        self._active = True
+        self._set_active(True)
         if self.settings.show_hint:
             self._hint.show_keys(self._cached_hint_text())
         self._timer.start(self.settings.timeout_ms)
@@ -171,7 +171,13 @@ class CommandModeService(Service):
     def _deactivate(self) -> None:
         self._timer.stop()
         self._hint.hide()
-        self._active = False
+        self._set_active(False)
+
+    def _set_active(self, active: bool) -> None:
+        if active == self._active:
+            return
+        self._active = active
+        self.bus.publish("command_mode.active.changed", active=active)
 
     def _install_hook(self) -> None:
         if self._hook:

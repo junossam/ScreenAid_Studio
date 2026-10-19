@@ -136,6 +136,7 @@ class PinnedWindowManager(Service):
             self.settings.window_border,
             display_size=display_size,
             position=position,
+            shortcut_settings=self.settings.drawing_shortcuts,
         )
         window.destroyed.connect(lambda _obj=None, item=window: self._forget(item))
         self._windows.append(window)
@@ -159,3 +160,4 @@ class PinnedWindowManager(Service):
         for window in tuple(self._windows):
             window.set_toolbar_button_size(settings.drawing.toolbar_button_size)
             window.set_border_settings(settings.window_border)
+            window.set_shortcut_settings(settings.drawing_shortcuts)

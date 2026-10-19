@@ -135,6 +135,12 @@ class TwoPointTool:
             return point
         dx = point.x() - self._start.x()
         dy = point.y() - self._start.y()
+        if self.shape_type in {ShapeType.RECTANGLE, ShapeType.ELLIPSE}:
+            side = max(abs(dx), abs(dy))
+            return QPoint(
+                self._start.x() + (side if dx >= 0 else -side),
+                self._start.y() + (side if dy >= 0 else -side),
+            )
         if abs(dx) >= abs(dy):
             return QPoint(point.x(), self._start.y())
         return QPoint(self._start.x(), point.y())

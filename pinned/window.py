@@ -7,7 +7,21 @@ from PySide6.QtCore import QPoint, QRect, QRectF, QSize, Qt
 from PySide6.QtGui import QAction, QColor, QGuiApplication, QImage, QKeySequence, QPainter, QPen, QShortcut
 from PySide6.QtWidgets import QFileDialog, QMenu, QMessageBox, QWidget
 
-from config.settings import DrawingSettings, EraserSettings, PinnedWindowSettings, WindowBorderSettings
+from config.settings import (
+    DrawingSettings,
+    DrawingShortcutSettings,
+    EraserSettings,
+    PinnedWindowSettings,
+    WindowBorderSettings,
+)
+from core.drawing_shortcuts import (
+    COLOR_SHORTCUTS,
+    ESCAPE_ACTION,
+    TOOL_SHORTCUTS,
+    WIDTH_SHORTCUTS,
+    build_bindings,
+    qt_modifier_mask,
+)
 from drawing.document import DrawingDocument
 from drawing.events import PointerEvent
 from drawing.geometry import pen_style_for_name
@@ -29,6 +43,7 @@ class PinnedWindow(QWidget):
         border_settings: WindowBorderSettings | None = None,
         display_size: QSize | None = None,
         position: QPoint | None = None,
+        shortcut_settings: DrawingShortcutSettings | None = None,
     ) -> None:
         super().__init__()
         self._image = image
@@ -51,6 +66,8 @@ class PinnedWindow(QWidget):
         self._preview: Shape | None = None
         self._erasing = False
         self._drag_pos: QPoint | None = None
+        self._shortcut_settings = shortcut_settings or DrawingShortcutSettings(enabled=False, keys={})
+        self._shortcut_bindings = self._bindings_for(self._shortcut_settings)
         self._setup_window()
         self._toolbar = AnnotationToolbar(
             parent=self,
@@ -67,13 +84,15 @@ class PinnedWindow(QWidget):
             toolbar_button_size=drawing_settings.toolbar_button_size,
             current_eraser_mode=self._eraser_settings.mode,
             on_eraser_mode_changed=self.set_eraser_mode,
+            shortcut_keys=self._hint_keys_for(self._shortcut_settings),
+            on_key_pressed=self.handle_shortcut_key,
         )
         self._toolbar_user_positioned = False
         self._toolbar.drag_finished.connect(self._annotation_toolbar_moved)
         self._position_toolbar()
         self._escape_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Escape), self)
         self._escape_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
-        self._escape_shortcut.activated.connect(self.close)
+        self._escape_shortcut.activated.connect(self._escape_pressed)
 
     def _setup_window(self) -> None:
         self.setWindowTitle(tr("pinned.title"))
@@ -201,10 +220,69 @@ class PinnedWindow(QWidget):
 
     def keyPressEvent(self, event) -> None:
         if event.key() == Qt.Key.Key_Escape:
-            self.close()
+            self._escape_pressed()
+            event.accept()
+            return
+        if self.handle_shortcut_key(event):
             event.accept()
             return
         super().keyPressEvent(event)
+
+    def handle_shortcut_key(self, event) -> bool:
+        """Drawing shortcuts only apply to this window, and only while it is
+        in annotation mode. Qt delivers key events to the focused window, so
+        other pinned windows and applications are never affected."""
+        if not self._annotation_mode:
+            return False
+        if event.key() == Qt.Key.Key_Escape:
+            self._escape_pressed()
+            return True
+        action = self._shortcut_bindings.get((qt_modifier_mask(event.modifiers()), int(event.nativeVirtualKey())))
+        if action is None or action == ESCAPE_ACTION:
+            return False
+        if action in TOOL_SHORTCUTS:
+            self._toolbar.select_tool(TOOL_SHORTCUTS[action])
+        elif action in COLOR_SHORTCUTS:
+            self._toolbar.select_color_index(COLOR_SHORTCUTS[action])
+        elif action in WIDTH_SHORTCUTS:
+            self._toolbar.step_width(WIDTH_SHORTCUTS[action])
+        elif action == "undo":
+            self.undo_annotation()
+        elif action == "redo":
+            self.redo_annotation()
+        elif action == "clear":
+            self.clear_annotations()
+        else:
+            return False
+        return True
+
+    def set_shortcut_settings(self, shortcut_settings: DrawingShortcutSettings) -> None:
+        self._shortcut_settings = shortcut_settings
+        self._shortcut_bindings = self._bindings_for(shortcut_settings)
+        self._toolbar.set_shortcut_keys(self._hint_keys_for(shortcut_settings))
+
+    @staticmethod
+    def _bindings_for(shortcut_settings: DrawingShortcutSettings) -> dict[tuple[int, int], str]:
+        return build_bindings(shortcut_settings.keys) if shortcut_settings.enabled else {}
+
+    @staticmethod
+    def _hint_keys_for(shortcut_settings: DrawingShortcutSettings) -> dict[str, str]:
+        return shortcut_settings.keys if shortcut_settings.enabled else {}
+
+    def _escape_pressed(self) -> None:
+        if not self._annotation_mode:
+            self.close()
+            return
+        if self._tool is not None or self._erasing:
+            # Esc mid-stroke only drops the stroke being drawn.
+            self._erasing = False
+            if self._tool is not None:
+                self._tool.cancel()
+                self._tool = None
+            self._preview = None
+            self.update()
+            return
+        self.set_annotation_mode(False)
 
     def contextMenuEvent(self, event) -> None:
         self._activate_for_keyboard()
@@ -223,7 +301,7 @@ class PinnedWindow(QWidget):
         clear = QAction(tr("pinned.clear_annotations"), self)
         copy_annotated = QAction(tr("pinned.copy_annotated"), self)
         save_annotated = QAction(tr("pinned.save_annotated"), self)
-        undo.setEnabled(not self._document.is_empty())
+        undo.setEnabled(self._document.can_undo())
         redo.setEnabled(self._document.can_redo())
         clear.setEnabled(not self._document.is_empty())
         close = QAction(tr("pinned.close"), self)
@@ -272,6 +350,7 @@ class PinnedWindow(QWidget):
         self._toolbar.set_visible(self._annotation_mode)
         if self._annotation_mode:
             self._position_toolbar()
+            self._activate_for_keyboard()
         self._sync_toolbar_state()
         self.update()
 
@@ -439,8 +518,9 @@ class PinnedWindow(QWidget):
 
     def _sync_toolbar_state(self) -> None:
         self._toolbar.set_action_state(
-            can_undo=not self._document.is_empty(),
+            can_undo=self._document.can_undo(),
             can_redo=self._document.can_redo(),
+            can_clear=not self._document.is_empty(),
         )
 
     def _scaled_size(self) -> QSize:

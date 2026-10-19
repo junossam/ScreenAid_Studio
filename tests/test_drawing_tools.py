@@ -61,6 +61,15 @@ class FreehandToolTests(unittest.TestCase):
         self.assertIsNotNone(shape)
         self.assertEqual(shape.points[-1], QPoint(30, 0))
 
+    def test_rectangle_tool_becomes_square_with_shift(self) -> None:
+        tool = create_tool(self._settings("rectangle"))
+
+        tool.pointer_down(PointerEvent(QPoint(0, 0), 1))
+        shape = tool.pointer_up(PointerEvent(QPoint(-30, 10), 2, shift=True))
+
+        self.assertIsNotNone(shape)
+        self.assertEqual(shape.points[-1], QPoint(-30, 30))
+
     def test_tool_shape_keeps_current_style(self) -> None:
         tool = create_tool(self._settings("line"))
 

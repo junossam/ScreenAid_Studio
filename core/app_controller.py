@@ -46,11 +46,13 @@ class AppController:
         self.container.mouse.start()
         self.container.hotkeys.start()
         self.container.command_mode.start()
+        self.container.drawing_shortcuts.start()
         if not self.settings.app.start_minimized:
             self.bus.publish("settings.open")
         self.state_store.set_running(True)
 
     def stop(self) -> None:
+        self.container.drawing_shortcuts.stop()
         self.container.command_mode.stop()
         self.container.hotkeys.stop()
         self.container.mouse.stop()

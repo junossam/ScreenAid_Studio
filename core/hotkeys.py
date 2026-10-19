@@ -69,6 +69,13 @@ KEY_NAME_TO_VK = {
     "Y": VK_Y,
     "Z": VK_Z,
     "SPACE": VK_SPACE,
+    "H": 0x48,
+    "N": 0x4E,
+    "T": 0x54,
+    "U": 0x55,
+    "[": 0xDB,
+    "]": 0xDD,
+    **{str(digit): 0x30 + digit for digit in range(10)},
 }
 
 

@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QButtonGroup, QHBoxLayout, QMenu, QToolButton, QWi
 
 from application.command_dispatcher import CommandDispatcher
 from application.commands import CommandId
+from core.drawing_shortcuts import TOOL_ACTIONS, next_width, with_shortcut
 from core.event_bus import Event, EventBus, Subscription
 from core.localization import tr
 from core.service import Service
@@ -43,6 +44,7 @@ class DrawingToolbar(Service):
         toolbar_button_size: int,
         toolbar_x: int,
         toolbar_y: int,
+        shortcut_keys: dict[str, str] | None = None,
     ) -> None:
         self.bus = bus
         self.dispatcher = dispatcher
@@ -56,6 +58,7 @@ class DrawingToolbar(Service):
         self._toolbar_position = QPoint(toolbar_x, toolbar_y)
         self._coordinates = ScreenCoordinateMapper()
         self._paused = False
+        self._shortcut_keys = dict(shortcut_keys or {})
         self._window = FloatingToolWindow()
         self._escape_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Escape), self._window)
         self._escape_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
@@ -66,6 +69,8 @@ class DrawingToolbar(Service):
         self._style_button = QToolButton(self._window)
         self._stamp_button: QToolButton | None = None
         self._eraser_button: QToolButton | None = None
+        self._command_buttons: dict[str, QToolButton] = {}
+        self._color_actions: list = []
         self._subscriptions: list[Subscription] = []
         self._window.input_geometry_changed.connect(self._publish_input_exclusion)
         self._window.drag_finished.connect(self._toolbar_drag_finished)
@@ -78,6 +83,8 @@ class DrawingToolbar(Service):
             self.bus.subscribe("drawing.mode.changed", self._drawing_mode_changed),
             self.bus.subscribe("drawing.toolbar.raise", self._toolbar_raise_requested),
             self.bus.subscribe("drawing.tool.changed", self._tool_changed),
+            self.bus.subscribe("drawing.toolbar.color.select", self._color_shortcut),
+            self.bus.subscribe("drawing.toolbar.width.step", self._width_shortcut),
             self.bus.subscribe("app.pause.changed", self._pause_changed),
             self.bus.subscribe("settings.saved", self._settings_saved),
         ]
@@ -133,6 +140,8 @@ class DrawingToolbar(Service):
             button.setToolTip(label)
             button.clicked.connect(lambda _checked=False, item=command: self.dispatcher.dispatch(item))
             layout.addWidget(button)
+            self._command_buttons[icon_name] = button
+        self._apply_shortcut_hints()
         self._apply_toolbar_size()
         self._window.move_to_available(self._toolbar_position)
 
@@ -201,6 +210,19 @@ class DrawingToolbar(Service):
             self._current_tool = tool
             self._sync_buttons()
 
+    def _color_shortcut(self, event: Event) -> None:
+        index = event.payload.get("index")
+        if isinstance(index, int) and 0 <= index < len(self.COLORS):
+            self._select_color(self.COLORS[index])
+
+    def _width_shortcut(self, event: Event) -> None:
+        step = event.payload.get("step")
+        if not isinstance(step, int) or step == 0:
+            return
+        target = next_width(self.WIDTHS, self._width, step)
+        if target != self._width:
+            self._select_width(target)
+
     def _pause_changed(self, event: Event) -> None:
         self._paused = bool(event.payload.get("paused", False))
         if self._paused:
@@ -212,6 +234,8 @@ class DrawingToolbar(Service):
         if isinstance(settings, Settings):
             self._toolbar_button_size = settings.drawing.toolbar_button_size
             self._toolbar_position = QPoint(settings.drawing.toolbar_x, settings.drawing.toolbar_y)
+            self._shortcut_keys = settings.drawing_shortcuts.keys if settings.drawing_shortcuts.enabled else {}
+            self._apply_shortcut_hints()
             self._apply_toolbar_size()
 
     def _sync_buttons(self) -> None:
@@ -226,7 +250,26 @@ class DrawingToolbar(Service):
         if self._stamp_button is not None:
             self._stamp_button.setIcon(stamp_icon(self._stamp_name(self._current_tool)))
         if self._eraser_button is not None:
-            self._eraser_button.setToolTip(tr(f"eraser_mode.{self._eraser_mode}"))
+            self._eraser_button.setToolTip(self._key_hint(tr(f"eraser_mode.{self._eraser_mode}"), "tool_eraser"))
+
+    def _key_hint(self, text: str, action: str) -> str:
+        return with_shortcut(text, self._shortcut_keys.get(action, ""))
+
+    def _apply_shortcut_hints(self) -> None:
+        for tool, label in self.TOOLS:
+            if tool != "eraser":
+                self._buttons[tool].setToolTip(self._key_hint(tr(label), TOOL_ACTIONS[tool]))
+        for index, action in enumerate(self._color_actions):
+            key = self._shortcut_keys.get(f"color_{index + 1}", "").strip()
+            action.setText(f"{self.COLORS[index]}\t{key}" if key else self.COLORS[index])
+        width_keys = " / ".join(
+            key for key in (self._shortcut_keys.get(name, "").strip() for name in ("width_down", "width_up")) if key
+        )
+        self._width_button.setToolTip(with_shortcut(tr("tool.stroke_width"), width_keys))
+        for icon_name, action in (("undo", "undo"), ("redo", "redo"), ("clear", "clear")):
+            self._command_buttons[icon_name].setToolTip(self._key_hint(tr(f"tool.{icon_name}"), action))
+        self._command_buttons["pass"].setToolTip(with_shortcut(tr("tool.pass_through"), "Esc"))
+        self._sync_style_buttons()
 
     def _add_popup_button(self, layout: QHBoxLayout, button: QToolButton, tooltip: str, menu: QMenu) -> None:
         button.setToolTip(tooltip)
@@ -273,6 +316,7 @@ class DrawingToolbar(Service):
         for color in self.COLORS:
             action = menu.addAction(swatch_icon(color), color)
             action.triggered.connect(lambda _checked=False, value=color: self._select_color(value))
+            self._color_actions.append(action)
         return menu
 
     def _width_menu(self) -> QMenu:

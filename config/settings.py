@@ -154,6 +154,35 @@ class CommandModeSettings:
     keys: dict[str, str]
 
 
+DRAWING_SHORTCUT_DEFAULTS = {
+    "tool_freehand": "1",
+    "tool_highlighter": "2",
+    "tool_line": "3",
+    "tool_arrow": "4",
+    "tool_rectangle": "5",
+    "tool_ellipse": "6",
+    "tool_stamp": "7",
+    "tool_eraser": "8",
+    "color_1": "Q",
+    "color_2": "W",
+    "color_3": "E",
+    "color_4": "R",
+    "color_5": "T",
+    "color_6": "Y",
+    "width_down": "[",
+    "width_up": "]",
+    "undo": "Ctrl+Z",
+    "redo": "Ctrl+Y",
+    "clear": "Ctrl+D",
+}
+
+
+@dataclass(frozen=True)
+class DrawingShortcutSettings:
+    enabled: bool
+    keys: dict[str, str]
+
+
 @dataclass(frozen=True)
 class RegionSelectionSettings:
     dark_overlay_opacity: int
@@ -199,6 +228,7 @@ class Settings:
     window_border: WindowBorderSettings
     hotkeys: HotkeySettings
     command_mode: CommandModeSettings
+    drawing_shortcuts: DrawingShortcutSettings
     region_selection: RegionSelectionSettings
     magnifier: MagnifierSettings
     live_zoom: LiveZoomSettings
@@ -366,6 +396,13 @@ class Settings:
                     "toggle_live_zoom": parser.get("command_mode", "toggle_live_zoom", fallback="J"),
                     "open_settings": parser.get("command_mode", "open_settings", fallback="S"),
                     "toggle_pause": parser.get("command_mode", "toggle_pause", fallback="Space"),
+                },
+            ),
+            drawing_shortcuts=DrawingShortcutSettings(
+                enabled=parser.getboolean("drawing_shortcuts", "enabled", fallback=True),
+                keys={
+                    name: parser.get("drawing_shortcuts", name, fallback=default)
+                    for name, default in DRAWING_SHORTCUT_DEFAULTS.items()
                 },
             ),
             region_selection=RegionSelectionSettings(

@@ -109,7 +109,7 @@ class FullscreenMagnifierWindow(QWidget):
         self._closing = False
         self._drawing = False
         self._tool.cancel()
-        self._document.clear()
+        self._document.reset()
         self._elapsed_ms = 0
         self._progress = 0.0
         self._active_scale = self._clamp_scale(self.settings.scale)
@@ -459,7 +459,7 @@ class FullscreenMagnifierWindow(QWidget):
             for shape in self._document.shapes():
                 self.bus.publish("drawing.shape.commit", shape=shape)
             self.bus.publish("overlay.repaint")
-        self._document.clear()
+        self._document.reset()
         self._tool.cancel()
         self._drawing = False
         self._erasing = False

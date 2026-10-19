@@ -15,7 +15,7 @@ from drawing.shapes import Shape
 from mouse.events import MouseEvent, MouseEventType
 from overlay.coordinates import ScreenCoordinateMapper
 from overlay.effects import ClickButtonTracker, ClickEffect, ClickEffectType
-from utils.winapi import set_click_through
+from utils.winapi import VK_SHIFT, key_down, set_click_through
 
 
 class OverlayWindow(QObject):
@@ -518,7 +518,7 @@ class OverlayWindow(QObject):
         return PointerEvent(
             position=self._physical_to_qt_point(event.x, event.y),
             timestamp_ms=event.timestamp_ms,
-            shift=False,
+            shift=key_down(VK_SHIFT),
             alt=False,
         )
 

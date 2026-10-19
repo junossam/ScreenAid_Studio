@@ -50,6 +50,11 @@ WM_MOUSEHWHEEL = 0x020E
 WM_HOTKEY = 0x0312
 HC_ACTION = 0
 VK_ESCAPE = 0x1B
+VK_SHIFT = 0x10
+VK_CONTROL = 0x11
+VK_MENU = 0x12
+VK_LWIN = 0x5B
+VK_RWIN = 0x5C
 VK_LBUTTON = 0x01
 VK_RBUTTON = 0x02
 VK_MBUTTON = 0x04
@@ -340,6 +345,10 @@ def register_window_message(name: str) -> int:
 
 
 def mouse_button_down(vk_code: int) -> bool:
+    return bool(user32.GetAsyncKeyState(vk_code) & 0x8000)
+
+
+def key_down(vk_code: int) -> bool:
     return bool(user32.GetAsyncKeyState(vk_code) & 0x8000)
 
 

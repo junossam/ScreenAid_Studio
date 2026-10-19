@@ -5,6 +5,7 @@ from collections.abc import Callable
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QButtonGroup, QHBoxLayout, QMenu, QToolButton, QWidget
 
+from core.drawing_shortcuts import TOOL_ACTIONS, next_width, with_shortcut
 from core.localization import tr
 from ui.floating_tool_window import FloatingToolWindow, ToolDragHandle
 from ui.toolbar_metrics import toolbar_metrics, toolbar_style
@@ -42,6 +43,8 @@ class AnnotationToolbar(FloatingToolWindow):
         toolbar_button_size: int = 28,
         current_eraser_mode: str = "object",
         on_eraser_mode_changed: Callable[[str], None] | None = None,
+        shortcut_keys: dict[str, str] | None = None,
+        on_key_pressed: Callable[[object], bool] | None = None,
     ) -> None:
         super().__init__()
         self._owner = parent
@@ -55,6 +58,9 @@ class AnnotationToolbar(FloatingToolWindow):
         self._on_style_changed = on_style_changed
         self._on_eraser_mode_changed = on_eraser_mode_changed
         self._toolbar_button_size = toolbar_button_size
+        self._shortcut_keys = dict(shortcut_keys or {})
+        self._on_key_pressed = on_key_pressed
+        self._color_actions: list = []
         self._buttons: dict[str, QToolButton] = {}
         self._color_button = QToolButton(self)
         self._width_button = QToolButton(self)
@@ -80,10 +86,33 @@ class AnnotationToolbar(FloatingToolWindow):
         if self._stamp_button is not None:
             self._stamp_button.setIcon(stamp_icon(self._stamp_name(tool)))
 
-    def set_action_state(self, can_undo: bool, can_redo: bool) -> None:
+    def select_tool(self, tool: str) -> None:
+        self._select_tool(tool)
+
+    def select_color_index(self, index: int) -> None:
+        if 0 <= index < len(self.COLORS):
+            self._select_color(self.COLORS[index])
+
+    def step_width(self, step: int) -> None:
+        target = next_width(self.WIDTHS, self._width, step)
+        if target != self._width:
+            self._select_width(target)
+
+    def set_shortcut_keys(self, keys: dict[str, str]) -> None:
+        self._shortcut_keys = dict(keys)
+        self._apply_shortcut_hints()
+
+    def keyPressEvent(self, event) -> None:
+        # Keys typed while this toolbar has focus belong to its pinned window.
+        if self._on_key_pressed is not None and self._on_key_pressed(event):
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+    def set_action_state(self, can_undo: bool, can_redo: bool, can_clear: bool | None = None) -> None:
         self._undo_button.setEnabled(can_undo)
         self._redo_button.setEnabled(can_redo)
-        self._clear_button.setEnabled(can_undo)
+        self._clear_button.setEnabled(can_undo if can_clear is None else can_clear)
 
     def _build(
         self,
@@ -132,6 +161,7 @@ class AnnotationToolbar(FloatingToolWindow):
             button.setToolTip(tooltip)
             button.clicked.connect(callback)
             layout.addWidget(button)
+        self._apply_shortcut_hints()
         self.apply_toolbar_size(self._toolbar_button_size)
         self.set_current_tool(self._current_tool)
         self._sync_style_buttons()
@@ -168,7 +198,27 @@ class AnnotationToolbar(FloatingToolWindow):
         self._width_button.setIcon(width_icon(self._width))
         self._style_button.setIcon(line_style_icon(self._line_style))
         if self._eraser_button is not None:
-            self._eraser_button.setToolTip(tr(f"eraser_mode.{self._eraser_mode}"))
+            self._eraser_button.setToolTip(self._key_hint(tr(f"eraser_mode.{self._eraser_mode}"), "tool_eraser"))
+
+    def _key_hint(self, text: str, action: str) -> str:
+        return with_shortcut(text, self._shortcut_keys.get(action, ""))
+
+    def _apply_shortcut_hints(self) -> None:
+        for tool, label in self.TOOLS:
+            if tool != "eraser":
+                self._buttons[tool].setToolTip(self._key_hint(tr(label), TOOL_ACTIONS[tool]))
+        for index, action in enumerate(self._color_actions):
+            key = self._shortcut_keys.get(f"color_{index + 1}", "").strip()
+            action.setText(f"{self.COLORS[index]}\t{key}" if key else self.COLORS[index])
+        width_keys = " / ".join(
+            key for key in (self._shortcut_keys.get(name, "").strip() for name in ("width_down", "width_up")) if key
+        )
+        self._width_button.setToolTip(with_shortcut(tr("tool.stroke_width"), width_keys))
+        self._undo_button.setToolTip(self._key_hint(tr("annotation.undo"), "undo"))
+        self._redo_button.setToolTip(self._key_hint(tr("annotation.redo"), "redo"))
+        self._clear_button.setToolTip(self._key_hint(tr("annotation.clear"), "clear"))
+        self._done_button.setToolTip(with_shortcut(tr("annotation.done"), "Esc"))
+        self._sync_style_buttons()
 
     def _add_popup_button(self, layout: QHBoxLayout, button: QToolButton, tooltip: str, menu: QMenu) -> None:
         button.setToolTip(tooltip)
@@ -192,6 +242,7 @@ class AnnotationToolbar(FloatingToolWindow):
         for color in self.COLORS:
             action = menu.addAction(swatch_icon(color), color)
             action.triggered.connect(lambda _checked=False, value=color: self._select_color(value))
+            self._color_actions.append(action)
         return menu
 
     def _width_menu(self) -> QMenu:

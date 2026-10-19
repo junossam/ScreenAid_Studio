@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from config.settings import DRAWING_SHORTCUT_DEFAULTS
 from core.command_mode import COMMAND_MODE_COMMANDS
 from core.hotkeys import DEFAULT_HOTKEYS
 from core.localization import tr
@@ -111,6 +112,18 @@ def build_shortcuts_tab(dialog) -> QWidget:
         dialog.command_key_fields[name] = field
         layout.addRow(tr(f"hotkey.{name}"), field)
     outer.addWidget(command_mode_group)
+
+    drawing_shortcuts_group = QGroupBox(tr("settings.tab.drawing_shortcuts"))
+    layout = QFormLayout(drawing_shortcuts_group)
+    dialog.drawing_shortcuts_enabled = QCheckBox()
+    dialog.drawing_shortcut_fields = {}
+    layout.addRow(tr("settings.drawing_shortcuts_enabled"), dialog.drawing_shortcuts_enabled)
+    for name, default in DRAWING_SHORTCUT_DEFAULTS.items():
+        field = QLineEdit()
+        field.setPlaceholderText(default)
+        dialog.drawing_shortcut_fields[name] = field
+        layout.addRow(tr(f"drawing_shortcut.{name}"), field)
+    outer.addWidget(drawing_shortcuts_group)
 
     outer.addStretch(1)
     return widget

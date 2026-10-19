@@ -9,6 +9,7 @@ from application.state_store import ApplicationStateStore
 from capture.manager import CaptureManager
 from config.settings import Settings
 from core.command_mode import CommandModeService
+from core.drawing_shortcuts import DrawingShortcutService
 from core.event_bus import EventBus
 from core.hotkeys import HotkeyManager
 from drawing.controller import DrawingController
@@ -42,6 +43,7 @@ class ServiceContainer:
     mouse: GlobalMouseHook
     hotkeys: HotkeyManager
     command_mode: CommandModeService
+    drawing_shortcuts: DrawingShortcutService
     tray: TrayIcon
     drawing_toolbar: DrawingToolbar
     toolbar_position_store: ToolbarPositionStore
@@ -67,6 +69,7 @@ class ServiceContainer:
         mouse = GlobalMouseHook(bus=event_bus)
         hotkeys = HotkeyManager(dispatcher=dispatcher, hotkeys=settings.hotkeys, bus=event_bus)
         command_mode = CommandModeService(settings.command_mode, dispatcher=dispatcher, bus=event_bus)
+        drawing_shortcuts = DrawingShortcutService(settings.drawing_shortcuts, dispatcher=dispatcher, bus=event_bus)
         tray = TrayIcon(settings=settings, bus=event_bus, dispatcher=dispatcher, base_dir=base_dir)
         drawing_toolbar = DrawingToolbar(
             bus=event_bus,
@@ -79,6 +82,7 @@ class ServiceContainer:
             toolbar_button_size=settings.drawing.toolbar_button_size,
             toolbar_x=settings.drawing.toolbar_x,
             toolbar_y=settings.drawing.toolbar_y,
+            shortcut_keys=settings.drawing_shortcuts.keys if settings.drawing_shortcuts.enabled else {},
         )
         toolbar_position_store = ToolbarPositionStore(bus=event_bus, settings_manager=settings_manager)
         startup = StartupManager(base_dir / "main.py")
@@ -104,6 +108,7 @@ class ServiceContainer:
             mouse=mouse,
             hotkeys=hotkeys,
             command_mode=command_mode,
+            drawing_shortcuts=drawing_shortcuts,
             tray=tray,
             drawing_toolbar=drawing_toolbar,
             toolbar_position_store=toolbar_position_store,
