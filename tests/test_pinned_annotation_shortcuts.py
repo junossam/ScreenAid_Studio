@@ -85,6 +85,22 @@ class PinnedAnnotationShortcutTest(unittest.TestCase):
         self.assertEqual(self.window._current_color, "#0a84ff")
         self.assertEqual(self.window._current_width, 8)
 
+    def test_repeating_stamp_and_eraser_keys_cycles(self) -> None:
+        self.window.set_annotation_mode(True)
+
+        self.window.handle_shortcut_key(_key(0x37, Qt.Key.Key_7))
+        self.assertEqual(self.window._current_tool, "stamp_star")
+        self.window.handle_shortcut_key(_key(0x37, Qt.Key.Key_7))
+        self.assertEqual(self.window._current_tool, "stamp_heart")
+
+        self.window.handle_shortcut_key(_key(0x38, Qt.Key.Key_8))
+        self.assertEqual(self.window._current_tool, "eraser")
+        self.assertEqual(self.window._eraser_settings.mode, "object")
+        self.window.handle_shortcut_key(_key(0x38, Qt.Key.Key_8))
+        self.assertEqual(self.window._eraser_settings.mode, "pixel")
+        self.window.handle_shortcut_key(_key(0x37, Qt.Key.Key_7))
+        self.assertEqual(self.window._current_tool, "stamp_star")
+
     def test_undo_redo_need_ctrl(self) -> None:
         self._add_shape()
         self.window.set_annotation_mode(True)

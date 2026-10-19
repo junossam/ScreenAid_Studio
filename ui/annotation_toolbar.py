@@ -5,7 +5,14 @@ from collections.abc import Callable
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QButtonGroup, QHBoxLayout, QMenu, QToolButton, QWidget
 
-from core.drawing_shortcuts import TOOL_ACTIONS, next_width, with_shortcut
+from core.drawing_shortcuts import (
+    STAMP_NAMES,
+    TOOL_ACTIONS,
+    next_eraser_mode,
+    next_stamp_tool,
+    next_width,
+    with_shortcut,
+)
 from core.localization import tr
 from ui.floating_tool_window import FloatingToolWindow, ToolDragHandle
 from ui.toolbar_metrics import toolbar_metrics, toolbar_style
@@ -86,8 +93,14 @@ class AnnotationToolbar(FloatingToolWindow):
         if self._stamp_button is not None:
             self._stamp_button.setIcon(stamp_icon(self._stamp_name(tool)))
 
-    def select_tool(self, tool: str) -> None:
-        self._select_tool(tool)
+    def apply_tool_shortcut(self, tool: str) -> None:
+        # Repeating the stamp or eraser key cycles stamp types / eraser modes.
+        if tool == "stamp_star":
+            self._select_tool(next_stamp_tool(self._current_tool))
+        elif tool == "eraser" and self._current_tool == "eraser":
+            self._select_eraser_mode(next_eraser_mode(self._eraser_mode))
+        else:
+            self._select_tool(tool)
 
     def select_color_index(self, index: int) -> None:
         if 0 <= index < len(self.COLORS):
@@ -261,7 +274,7 @@ class AnnotationToolbar(FloatingToolWindow):
 
     def _stamp_menu(self) -> QMenu:
         menu = QMenu(self)
-        for stamp in ("star", "heart", "check", "x", "exclamation"):
+        for stamp in STAMP_NAMES:
             action = menu.addAction(stamp_icon(stamp), tr(f"stamp.{stamp}"))
             action.triggered.connect(lambda _checked=False, value=stamp: self._select_tool(f"stamp_{value}"))
         return menu

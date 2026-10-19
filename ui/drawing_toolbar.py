@@ -6,7 +6,14 @@ from PySide6.QtWidgets import QButtonGroup, QHBoxLayout, QMenu, QToolButton, QWi
 
 from application.command_dispatcher import CommandDispatcher
 from application.commands import CommandId
-from core.drawing_shortcuts import TOOL_ACTIONS, next_width, with_shortcut
+from core.drawing_shortcuts import (
+    STAMP_NAMES,
+    TOOL_ACTIONS,
+    next_eraser_mode,
+    next_stamp_tool,
+    next_width,
+    with_shortcut,
+)
 from core.event_bus import Event, EventBus, Subscription
 from core.localization import tr
 from core.service import Service
@@ -83,6 +90,7 @@ class DrawingToolbar(Service):
             self.bus.subscribe("drawing.mode.changed", self._drawing_mode_changed),
             self.bus.subscribe("drawing.toolbar.raise", self._toolbar_raise_requested),
             self.bus.subscribe("drawing.tool.changed", self._tool_changed),
+            self.bus.subscribe("drawing.toolbar.tool.shortcut", self._tool_shortcut),
             self.bus.subscribe("drawing.toolbar.color.select", self._color_shortcut),
             self.bus.subscribe("drawing.toolbar.width.step", self._width_shortcut),
             self.bus.subscribe("app.pause.changed", self._pause_changed),
@@ -209,6 +217,20 @@ class DrawingToolbar(Service):
         if isinstance(tool, str):
             self._current_tool = tool
             self._sync_buttons()
+
+    def _tool_shortcut(self, event: Event) -> None:
+        tool = event.payload.get("tool")
+        if isinstance(tool, str):
+            self._apply_tool_shortcut(tool)
+
+    def _apply_tool_shortcut(self, tool: str) -> None:
+        # Repeating the stamp or eraser key cycles stamp types / eraser modes.
+        if tool == "stamp_star":
+            self._select_tool(next_stamp_tool(self._current_tool))
+        elif tool == "eraser" and self._current_tool == "eraser":
+            self._select_eraser_mode(next_eraser_mode(self._eraser_mode))
+        else:
+            self._select_tool(tool)
 
     def _color_shortcut(self, event: Event) -> None:
         index = event.payload.get("index")
@@ -337,7 +359,7 @@ class DrawingToolbar(Service):
         menu = QMenu(self._window)
         menu.aboutToShow.connect(lambda: self.bus.publish("mouse.blocking.suspended", suspended=True))
         menu.aboutToHide.connect(lambda: self.bus.publish("mouse.blocking.suspended", suspended=False))
-        for stamp in ("star", "heart", "check", "x", "exclamation"):
+        for stamp in STAMP_NAMES:
             action = menu.addAction(stamp_icon(stamp), tr(f"stamp.{stamp}"))
             action.triggered.connect(lambda _checked=False, value=stamp: self._select_tool(f"stamp_{value}"))
         return menu

@@ -241,7 +241,7 @@ class PinnedWindow(QWidget):
         if action is None or action == ESCAPE_ACTION:
             return False
         if action in TOOL_SHORTCUTS:
-            self._toolbar.select_tool(TOOL_SHORTCUTS[action])
+            self._toolbar.apply_tool_shortcut(TOOL_SHORTCUTS[action])
         elif action in COLOR_SHORTCUTS:
             self._toolbar.select_color_index(COLOR_SHORTCUTS[action])
         elif action in WIDTH_SHORTCUTS:

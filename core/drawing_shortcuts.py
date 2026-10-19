@@ -48,6 +48,23 @@ COMMAND_SHORTCUTS = {
 }
 ESCAPE_ACTION = "escape"
 TOOL_ACTIONS = {tool: action for action, tool in TOOL_SHORTCUTS.items()}
+STAMP_NAMES = ("star", "heart", "check", "x", "exclamation")
+ERASER_MODES = ("object", "pixel")
+
+
+def next_stamp_tool(current_tool: str) -> str:
+    """Pressing the stamp key again while a stamp is active moves to the
+    next stamp; otherwise it starts from the first one."""
+    if not current_tool.startswith("stamp_"):
+        return f"stamp_{STAMP_NAMES[0]}"
+    name = current_tool.removeprefix("stamp_")
+    index = STAMP_NAMES.index(name) if name in STAMP_NAMES else -1
+    return f"stamp_{STAMP_NAMES[(index + 1) % len(STAMP_NAMES)]}"
+
+
+def next_eraser_mode(current_mode: str) -> str:
+    index = ERASER_MODES.index(current_mode) if current_mode in ERASER_MODES else -1
+    return ERASER_MODES[(index + 1) % len(ERASER_MODES)]
 
 
 def qt_modifier_mask(modifiers: Qt.KeyboardModifier) -> int:
@@ -203,7 +220,7 @@ class DrawingShortcutService(Service):
             else:
                 self.dispatcher.dispatch(CommandId.DRAWING_PASS_THROUGH)
         elif action in TOOL_SHORTCUTS:
-            self.bus.publish("drawing.tool.select", tool=TOOL_SHORTCUTS[action])
+            self.bus.publish("drawing.toolbar.tool.shortcut", tool=TOOL_SHORTCUTS[action])
         elif action in COLOR_SHORTCUTS:
             self.bus.publish("drawing.toolbar.color.select", index=COLOR_SHORTCUTS[action])
         elif action in WIDTH_SHORTCUTS:

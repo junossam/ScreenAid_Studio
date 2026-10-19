@@ -7,7 +7,13 @@ from pathlib import Path
 from application.command_dispatcher import CommandDispatcher
 from application.commands import CommandId
 from config.settings import DRAWING_SHORTCUT_DEFAULTS, DrawingShortcutSettings, Settings
-from core.drawing_shortcuts import ESCAPE_ACTION, DrawingShortcutService, build_bindings
+from core.drawing_shortcuts import (
+    ESCAPE_ACTION,
+    DrawingShortcutService,
+    build_bindings,
+    next_eraser_mode,
+    next_stamp_tool,
+)
 from core.event_bus import EventBus
 from core.hotkeys import MOD_CONTROL, VK_D, VK_Q, VK_Y, VK_Z
 from utils.winapi import VK_ESCAPE
@@ -51,6 +57,17 @@ class DrawingShortcutBindingTest(unittest.TestCase):
         self.assertEqual(settings.drawing_shortcuts.keys["tool_eraser"], "8")
 
 
+class ToolCycleTest(unittest.TestCase):
+    def test_stamp_key_starts_with_star_then_cycles(self) -> None:
+        self.assertEqual(next_stamp_tool("freehand"), "stamp_star")
+        self.assertEqual(next_stamp_tool("stamp_star"), "stamp_heart")
+        self.assertEqual(next_stamp_tool("stamp_exclamation"), "stamp_star")
+
+    def test_eraser_mode_toggles(self) -> None:
+        self.assertEqual(next_eraser_mode("object"), "pixel")
+        self.assertEqual(next_eraser_mode("pixel"), "object")
+
+
 class DrawingShortcutActionTest(unittest.TestCase):
     def setUp(self) -> None:
         self.bus = EventBus()
@@ -59,7 +76,7 @@ class DrawingShortcutActionTest(unittest.TestCase):
         for command in (CommandId.UNDO_DRAWING, CommandId.REDO_DRAWING, CommandId.DRAWING_PASS_THROUGH):
             self.dispatcher.register(command, lambda command=command: self.dispatched.append(command))
         self.published: list[tuple[str, dict]] = []
-        for topic in ("drawing.tool.select", "drawing.toolbar.color.select", "drawing.toolbar.width.step"):
+        for topic in ("drawing.toolbar.tool.shortcut", "drawing.toolbar.color.select", "drawing.toolbar.width.step"):
             self.bus.subscribe(topic, lambda event: self.published.append((event.name, dict(event.payload))))
         self.service = DrawingShortcutService(
             DrawingShortcutSettings(enabled=False, keys=dict(DRAWING_SHORTCUT_DEFAULTS)),
@@ -92,7 +109,7 @@ class DrawingShortcutActionTest(unittest.TestCase):
         self.assertEqual(
             self.published,
             [
-                ("drawing.tool.select", {"tool": "stamp_star"}),
+                ("drawing.toolbar.tool.shortcut", {"tool": "stamp_star"}),
                 ("drawing.toolbar.color.select", {"index": 3}),
                 ("drawing.toolbar.width.step", {"step": 1}),
             ],
